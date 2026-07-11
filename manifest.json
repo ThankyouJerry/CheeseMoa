@@ -2,12 +2,9 @@
   "manifest_version": 3,
   "name": "치즈모아 - CheeseMoa",
   "short_name": "치즈모아",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "여러 CHZZK 방송을 브라우저 한곳에 모아보는 로컬 멀티뷰",
-  "permissions": [
-    "storage",
-    "declarativeNetRequest"
-  ],
+  "permissions": ["storage"],
   "host_permissions": [
     "https://chzzk.naver.com/*"
   ],
@@ -26,14 +23,5 @@
     "32": "assets/icons/icon-32.png",
     "48": "assets/icons/icon-48.png",
     "128": "assets/icons/icon-128.png"
-  },
-  "declarative_net_request": {
-    "rule_resources": [
-      {
-        "id": "chzzk_frames",
-        "enabled": true,
-        "path": "rules/chzzk-frames.json"
-      }
-    ]
   }
 }

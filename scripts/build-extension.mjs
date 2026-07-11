@@ -16,7 +16,6 @@ const packageEntries = [
   "LICENSE",
   "assets/brand/cheesemoa-mark.svg",
   "assets/icons",
-  "rules",
   "src",
 ];
 

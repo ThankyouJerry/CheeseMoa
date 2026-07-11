@@ -5,12 +5,11 @@ const manifest = JSON.parse(await readFile("manifest.json", "utf8"));
 assert.equal(manifest.manifest_version, 3);
 assert.equal(manifest.name, "치즈모아 - CheeseMoa");
 assert.deepEqual(manifest.host_permissions, ["https://chzzk.naver.com/*"]);
-assert.equal(manifest.permissions.includes("cookies"), false);
+assert.deepEqual(manifest.permissions, ["storage"]);
 
 const requiredFiles = [
   manifest.action.default_popup,
   "src/viewer/viewer.html",
-  "rules/chzzk-frames.json",
   ...Object.values(manifest.icons),
 ];
 await Promise.all(requiredFiles.map((file) => access(file)));
