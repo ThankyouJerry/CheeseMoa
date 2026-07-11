@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CheeseMoa Store Assets</title>
+  <style>
+    :root { --navy:#173b57; --deep:#0b2436; --cheese:#ffc83d; --coral:#ff6b4a; --cream:#fff8e5; --muted:#9ab0bd; }
+    * { box-sizing:border-box; }
+    html,body { width:100%; height:100%; margin:0; overflow:hidden; }
+    body { background:var(--deep); color:var(--cream); font-family:"Apple SD Gothic Neo",Pretendard,"Noto Sans KR",sans-serif; }
+    .slide { display:none; position:absolute; inset:0; width:1280px; height:800px; overflow:hidden; }
+    .slide:target { display:block; }
+    .grid { position:absolute; inset:0; opacity:.08; background-image:linear-gradient(rgba(255,255,255,.35) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.35) 1px,transparent 1px); background-size:40px 40px; }
+    .eyebrow { color:var(--cheese); font-size:14px; font-weight:900; letter-spacing:.16em; }
+    h1 { margin:18px 0 16px; font-size:64px; line-height:1.04; letter-spacing:-.055em; word-break:keep-all; }
+    p { margin:0; color:var(--muted); font-size:21px; font-weight:650; line-height:1.55; word-break:keep-all; }
+    .brand { display:flex; align-items:center; gap:12px; font-size:20px; font-weight:900; }
+    .brand img { width:52px; height:52px; }
+    #overview .copy { position:absolute; z-index:2; top:62px; left:64px; width:520px; }
+    #overview .app { position:absolute; z-index:2; right:-115px; bottom:-45px; width:920px; border:1px solid rgba(255,255,255,.14); border-radius:26px; box-shadow:0 34px 80px rgba(0,0,0,.38); }
+    #overview .dot { position:absolute; z-index:1; width:260px; height:260px; right:70px; top:35px; border-radius:50%; background:var(--coral); opacity:.92; }
+    #layout .copy { position:absolute; z-index:2; top:58px; left:64px; right:64px; display:flex; justify-content:space-between; align-items:flex-start; }
+    #layout h1 { max-width:700px; font-size:56px; }
+    #layout .app { position:absolute; left:64px; right:64px; bottom:50px; width:1152px; height:520px; object-fit:cover; object-position:top; border-radius:24px; border:1px solid rgba(255,255,255,.13); }
+    .chips { display:flex; gap:8px; margin-top:18px; }
+    .chip { border:1px solid rgba(255,255,255,.16); border-radius:999px; padding:9px 13px; color:var(--cream); font-size:13px; font-weight:800; }
+    #privacy { background:var(--cream); color:var(--navy); }
+    #privacy .grid { opacity:.06; background-image:linear-gradient(var(--navy) 1px,transparent 1px),linear-gradient(90deg,var(--navy) 1px,transparent 1px); }
+    #privacy .copy { position:absolute; z-index:2; top:70px; left:70px; width:560px; }
+    #privacy .eyebrow { color:var(--coral); }
+    #privacy p { color:#637785; }
+    .privacy-card { position:absolute; z-index:2; top:88px; right:74px; width:480px; padding:34px; border:1px solid rgba(23,59,87,.15); border-radius:30px; background:white; box-shadow:0 24px 55px rgba(23,59,87,.12); }
+    .privacy-row { display:grid; grid-template-columns:54px 1fr; gap:16px; align-items:center; padding:17px 0; border-bottom:1px solid #e6eceb; }
+    .privacy-row:last-child { border-bottom:0; }
+    .privacy-row i { display:grid; width:54px; height:54px; place-items:center; border-radius:18px; background:var(--navy); color:var(--cheese); font-style:normal; font-size:23px; font-weight:900; }
+    .privacy-row strong,.privacy-row span { display:block; }
+    .privacy-row strong { font-size:17px; }
+    .privacy-row span { margin-top:4px; color:#71838d; font-size:13px; line-height:1.4; }
+    #privacy .brand { position:absolute; left:70px; bottom:62px; }
+  </style>
+</head>
+<body>
+  <section id="overview" class="slide">
+    <div class="grid"></div><div class="dot"></div>
+    <div class="copy"><div class="brand"><img src="../../assets/brand/cheesemoa-mark.svg" alt="" />치즈모아 CheeseMoa</div><div class="eyebrow" style="margin-top:72px">LOCAL CHZZK MULTIVIEW</div><h1>보고 싶은 방송,<br />한곳에.</h1><p>여러 라이브와 다시보기를<br />하나의 Chrome 탭에서 모아보세요.</p></div>
+    <img class="app" src="../images/mvp-preview.png" alt="치즈모아 화면" />
+  </section>
+  <section id="layout" class="slide">
+    <div class="grid"></div>
+    <div class="copy"><div><div class="eyebrow">FLEXIBLE LAYOUT</div><h1>방송 수에 맞춰<br />자동으로 정돈됩니다.</h1></div><div class="chips"><span class="chip">자동</span><span class="chip">1열</span><span class="chip">2열</span><span class="chip">3열</span></div></div>
+    <img class="app" src="../images/mvp-preview.png" alt="치즈모아 멀티뷰" />
+  </section>
+  <section id="privacy" class="slide">
+    <div class="grid"></div>
+    <div class="copy"><div class="eyebrow">PRIVACY FIRST</div><h1>계정 없이,<br />외부 서버 없이.</h1><p>입력한 방송 목록은 현재 Chrome 프로필에만 저장됩니다.</p></div>
+    <div class="privacy-card"><div class="privacy-row"><i>1</i><div><strong>외부 전송 없음</strong><span>분석 서버와 사용자 추적 코드를 사용하지 않습니다.</span></div></div><div class="privacy-row"><i>2</i><div><strong>쿠키 접근 없음</strong><span>로그인 쿠키를 읽거나 복사하지 않습니다.</span></div></div><div class="privacy-row"><i>3</i><div><strong>최소 권한</strong><span>로컬 저장과 CHZZK 표시 권한만 요청합니다.</span></div></div></div>
+    <div class="brand"><img src="../../assets/brand/cheesemoa-mark.svg" alt="" />치즈모아 CheeseMoa</div>
+  </section>
+</body>
+</html>

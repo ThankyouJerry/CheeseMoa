@@ -18,6 +18,8 @@
   <a href="#설치하기">설치 방법</a>
   ·
   <a href="#개인정보와-권한">개인정보와 권한</a>
+  ·
+  <a href="PRIVACY_POLICY.md">개인정보 처리방침</a>
 </p>
 
 ![두 개의 CHZZK VOD를 실행한 치즈모아](docs/images/mvp-preview.png)
@@ -41,8 +43,8 @@
 
 ## 설치하기
 
-> 치즈모아는 아직 Chrome Web Store에 등록되지 않았습니다. 현재는 개발자 모드에서
-> 압축해제 확장 프로그램으로 설치합니다.
+> Chrome Web Store 등록 전까지는 개발자 모드에서 압축해제 확장 프로그램으로 설치할 수
+> 있습니다. 웹스토어 심사가 완료되면 이 문서에 공식 설치 링크를 추가합니다.
 
 1. [Releases](https://github.com/ThankyouJerry/CheeseMoa/releases/latest)에서 최신 `CheeseMoa-v*.zip`을 내려받습니다.
 2. ZIP을 새 폴더에 압축 해제합니다.
@@ -85,6 +87,8 @@ https://chzzk.naver.com/video/{videoId}
 
 치즈모아에는 분석 서버, 광고 SDK, 사용자 추적 코드가 없습니다. 입력한 방송 링크 외의
 사용자 데이터는 저장하지 않습니다.
+
+자세한 데이터 처리 기준은 [개인정보 처리방침](PRIVACY_POLICY.md)에서 확인할 수 있습니다.
 
 | 권한 | 사용하는 이유 |
 | --- | --- |
