@@ -5,6 +5,7 @@ const input = document.querySelector("#url-input");
 const message = document.querySelector("#message");
 const addButton = document.querySelector("#add-button");
 const openButton = document.querySelector("#open-button");
+const loginButton = document.querySelector("#login-button");
 const savedList = document.querySelector("#saved-list");
 const savedCount = document.querySelector("#saved-count");
 
@@ -66,6 +67,11 @@ addButton.addEventListener("click", async () => {
 });
 
 openButton.addEventListener("click", openViewer);
+loginButton.addEventListener("click", async () => {
+  const url = "https://chzzk.naver.com/";
+  if (typeof chrome !== "undefined" && chrome.tabs) await chrome.tabs.create({ url });
+  else window.open(url, "_blank", "noopener");
+});
 
 channels = await loadChannels();
 render();

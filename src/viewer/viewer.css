@@ -41,7 +41,8 @@ button { cursor: pointer; }
 .layout-controls span { margin: 0 7px; color: var(--slate); font-size: 11px; font-weight: 750; }
 .layout-controls button, .outline-button { border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--powder); padding: 8px 10px; font-size: 11px; font-weight: 750; }
 .layout-controls button.active { background: var(--cheese); color: var(--navy-deep); }
-.outline-button { justify-self: end; border-color: rgba(255,248,229,.18); padding-inline: 14px; }
+.outline-button { border-color: rgba(255,248,229,.18); padding-inline: 14px; }
+.top-actions { display: flex; justify-self: end; gap: 6px; }
 main { padding: 12px; }
 .viewer-grid { display: grid; grid-template-columns: repeat(var(--columns, 1), minmax(0, 1fr)); gap: 10px; }
 .viewer-card { min-width: 0; overflow: hidden; border: 1px solid rgba(255,248,229,.13); border-radius: 17px; background: #071b29; box-shadow: 0 16px 40px rgba(0,0,0,.22); }
@@ -98,6 +99,7 @@ main { padding: 12px; }
 
 @media (max-width: 760px) {
   .topbar { grid-template-columns: 1fr auto; }
+  .top-actions #login-button { display: none; }
   .layout-controls { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; justify-content: center; margin-top: 8px; }
   .layout-controls span { display: none; }
   .viewer-grid { grid-template-columns: 1fr !important; }

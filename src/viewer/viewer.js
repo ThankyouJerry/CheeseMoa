@@ -7,6 +7,7 @@ const template = document.querySelector("#viewer-card-template");
 const sidebar = document.querySelector("#sidebar");
 const scrim = document.querySelector("#scrim");
 const sidebarToggle = document.querySelector("#sidebar-toggle");
+const loginButton = document.querySelector("#login-button");
 const sidebarClose = document.querySelector("#sidebar-close");
 const emptyAddButton = document.querySelector("#empty-add-button");
 const input = document.querySelector("#url-input");
@@ -100,6 +101,11 @@ layoutButtons.forEach((button) => {
 });
 
 sidebarToggle.addEventListener("click", () => setSidebar(true));
+loginButton.addEventListener("click", async () => {
+  const url = "https://chzzk.naver.com/";
+  if (typeof chrome !== "undefined" && chrome.tabs) await chrome.tabs.create({ url });
+  else window.open(url, "_blank", "noopener");
+});
 sidebarClose.addEventListener("click", () => setSidebar(false));
 emptyAddButton.addEventListener("click", () => setSidebar(true));
 scrim.addEventListener("click", () => setSidebar(false));
