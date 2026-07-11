@@ -18,10 +18,10 @@
 
 ## 설치 및 실행
 
-1. 이 저장소를 내려받거나 압축을 풉니다.
+1. [Releases](https://github.com/ThankyouJerry/CheeseMoa/releases)에서 최신 ZIP을 내려받아 새 폴더에 압축을 풉니다.
 2. Chrome 주소창에서 `chrome://extensions`를 엽니다.
 3. 오른쪽 위 `개발자 모드`를 켭니다.
-4. `압축해제된 확장 프로그램을 로드합니다`를 누르고 이 폴더를 선택합니다.
+4. `압축해제된 확장 프로그램을 로드합니다`를 누르고 `manifest.json`이 있는 폴더를 선택합니다.
 5. 도구 모음의 치즈모아 아이콘에서 CHZZK 링크를 추가합니다.
 
 ## 개발 확인
@@ -29,7 +29,11 @@
 ```bash
 npm test
 npm run validate
+npm run build
 ```
+
+`npm run build`는 `dist/`에 Chrome 배포용 ZIP, 압축해제 설치 폴더 및 SHA-256
+체크섬을 생성합니다.
 
 ## 개인정보
 

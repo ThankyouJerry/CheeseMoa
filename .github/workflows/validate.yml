@@ -17,3 +17,10 @@ jobs:
           node-version: 22
       - run: npm test
       - run: npm run validate
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CheeseMoa-extension
+          path: |
+            dist/CheeseMoa-*.zip
+            dist/SHA256SUMS.txt
