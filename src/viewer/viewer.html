@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>치즈모아 멀티뷰</title>
+    <link rel="icon" href="../../assets/brand/cheesemoa-mark.svg" />
+    <link rel="stylesheet" href="viewer.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="viewer.html" aria-label="치즈모아 홈">
+        <img src="../../assets/brand/cheesemoa-mark.svg" alt="" />
+        <span><strong>치즈모아</strong><small>LOCAL MULTIVIEW</small></span>
+      </a>
+      <div class="layout-controls" aria-label="화면 배치">
+        <span>화면 배치</span>
+        <button type="button" data-columns="0" class="active">자동</button>
+        <button type="button" data-columns="1">1열</button>
+        <button type="button" data-columns="2">2열</button>
+        <button type="button" data-columns="3">3열</button>
+      </div>
+      <button id="sidebar-toggle" class="outline-button" type="button">방송 목록</button>
+    </header>
+
+    <main>
+      <section id="viewer-grid" class="viewer-grid" aria-live="polite"></section>
+      <section id="empty-state" class="empty-state" hidden>
+        <img src="../../assets/brand/cheesemoa-mark.svg" alt="" />
+        <h1>모아볼 방송을 추가해 주세요.</h1>
+        <p>오른쪽 방송 목록에서 CHZZK 링크를 한 줄에 하나씩 입력하면 바로 시작됩니다.</p>
+        <button id="empty-add-button" class="coral-button" type="button">방송 추가하기</button>
+      </section>
+    </main>
+
+    <aside id="sidebar" class="sidebar" aria-label="방송 목록">
+      <div class="sidebar-header">
+        <div><strong>방송 목록</strong><span id="channel-count">0개</span></div>
+        <button id="sidebar-close" type="button" aria-label="방송 목록 닫기">×</button>
+      </div>
+      <label for="url-input">CHZZK 링크</label>
+      <textarea id="url-input" rows="5" placeholder="https://chzzk.naver.com/live/...&#10;https://chzzk.naver.com/video/..."></textarea>
+      <p id="message" class="message" aria-live="polite">여러 링크를 한 번에 추가할 수 있습니다.</p>
+      <button id="add-button" class="coral-button" type="button">목록에 추가</button>
+      <div id="channel-list" class="channel-list"></div>
+      <p class="privacy-note">링크 목록은 이 브라우저에만 저장됩니다.</p>
+    </aside>
+    <div id="scrim" class="scrim"></div>
+
+    <template id="viewer-card-template">
+      <article class="viewer-card">
+        <header>
+          <div><i></i><strong></strong><span></span></div>
+          <div class="card-actions">
+            <button type="button" data-action="reload" aria-label="방송 새로고침">↻</button>
+            <button type="button" data-action="fullscreen" aria-label="방송 전체화면">⛶</button>
+            <button type="button" data-action="remove" aria-label="방송 제거">×</button>
+          </div>
+        </header>
+        <div class="frame-wrap"><iframe allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>
+      </article>
+    </template>
+
+    <script type="module" src="viewer.js"></script>
+  </body>
+</html>

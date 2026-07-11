@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>치즈모아</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <header class="brand">
+        <img src="../../assets/brand/cheesemoa-mark.svg" alt="" />
+        <div>
+          <strong>치즈모아</strong>
+          <span>보고 싶은 방송, 한곳에.</span>
+        </div>
+      </header>
+
+      <section class="input-card" aria-labelledby="input-title">
+        <div class="section-heading">
+          <h1 id="input-title">방송 링크 추가</h1>
+          <span>여러 개 가능</span>
+        </div>
+        <textarea id="url-input" rows="5" placeholder="CHZZK 라이브 또는 다시보기 링크를&#10;한 줄에 하나씩 붙여 넣으세요."></textarea>
+        <p id="message" class="message" aria-live="polite">라이브와 VOD 링크를 함께 넣을 수 있습니다.</p>
+        <button id="add-button" class="primary" type="button">방송 모아보기</button>
+      </section>
+
+      <section class="saved" aria-labelledby="saved-title">
+        <div class="section-heading">
+          <h2 id="saved-title">저장된 방송</h2>
+          <span id="saved-count">0개</span>
+        </div>
+        <div id="saved-list" class="saved-list"></div>
+        <button id="open-button" class="secondary" type="button">현재 목록으로 멀티뷰 열기</button>
+      </section>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

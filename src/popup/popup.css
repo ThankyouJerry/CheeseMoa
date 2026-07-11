@@ -1,0 +1,54 @@
+:root {
+  color-scheme: light;
+  --navy: #173b57;
+  --cheese: #ffc83d;
+  --coral: #ff6b4a;
+  --cream: #fff8e5;
+  --paper: #ffffff;
+  --powder: #ddecf2;
+  --slate: #617282;
+}
+
+* { box-sizing: border-box; }
+body {
+  width: 390px;
+  margin: 0;
+  background: var(--cream);
+  color: var(--navy);
+  font-family: "Apple SD Gothic Neo", Pretendard, "Noto Sans KR", sans-serif;
+}
+main { padding: 20px; }
+.brand { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.brand img { width: 48px; height: 48px; }
+.brand strong, .brand span { display: block; }
+.brand strong { font-size: 22px; letter-spacing: -.04em; }
+.brand span { margin-top: 2px; color: var(--slate); font-size: 12px; font-weight: 650; }
+.input-card, .saved { border: 1px solid rgba(23,59,87,.13); border-radius: 20px; background: rgba(255,255,255,.72); padding: 16px; }
+.saved { margin-top: 12px; }
+.section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+h1, h2 { margin: 0; font-size: 14px; letter-spacing: -.02em; }
+.section-heading span { color: var(--slate); font-size: 11px; font-weight: 700; }
+textarea {
+  width: 100%;
+  margin-top: 12px;
+  resize: vertical;
+  border: 1px solid rgba(23,59,87,.18);
+  border-radius: 13px;
+  outline: 0;
+  background: var(--paper);
+  color: var(--navy);
+  padding: 12px;
+  font: 600 12px/1.55 inherit;
+}
+textarea:focus { border-color: var(--coral); box-shadow: 0 0 0 3px rgba(255,107,74,.13); }
+.message { min-height: 18px; margin: 8px 2px 10px; color: var(--slate); font-size: 11px; line-height: 1.5; }
+.message.error { color: #b43d26; }
+button { width: 100%; border: 0; border-radius: 12px; padding: 12px; font: 800 13px inherit; cursor: pointer; }
+.primary { background: var(--coral); color: white; box-shadow: 0 7px 16px rgba(255,107,74,.22); }
+.secondary { margin-top: 12px; background: var(--navy); color: white; }
+button:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; }
+.saved-list { display: grid; gap: 7px; max-height: 126px; margin-top: 10px; overflow-y: auto; }
+.saved-item { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 10px; border-radius: 11px; background: var(--powder); }
+.saved-item i { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: var(--cheese); box-shadow: 0 0 0 2px var(--navy); }
+.saved-item span { overflow: hidden; font-size: 11px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.empty { color: var(--slate); font-size: 11px; text-align: center; padding: 10px 0 4px; }
