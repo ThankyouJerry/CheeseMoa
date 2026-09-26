@@ -1,5 +1,7 @@
 import { createDisplayName, parseChzzkUrls } from "../shared/chzzk-url.js";
 import { loadChannels, updateChannels, subscribeChannels } from "../shared/storage.js";
+import { fitFrame } from "../shared/frame-layout.js";
+import { loadChannelInfo, channelHeading } from "../shared/channel-info.js";
 
 const grid = document.querySelector("#viewer-grid");
 const emptyState = document.querySelector("#empty-state");
@@ -22,6 +24,70 @@ let fixedColumns = 0;
 try { fixedColumns = Number(localStorage.getItem("cheesemoa.columns")) || 0; } catch {}
 if (![0, 1, 2, 3].includes(fixedColumns)) fixedColumns = 0;
 const cards = new Map();
+const playerViews = new WeakMap();
+const channelInfo = new Map();
+
+async function refreshChannelInfo(channel, card) {
+  let info;
+  try { info = await loadChannelInfo(channel); }
+  catch { info = { name: "", title: "정보 조회 실패 · 재생은 계속됩니다" }; }
+  if (cards.get(channel.id) !== card) return;
+  channelInfo.set(channel.id, info);
+  updateCardHeading(card, channels.find((item) => item.id === channel.id), channels.findIndex((item) => item.id === channel.id));
+  renderSidebar();
+  if (info.name) {
+    try { await updateChannels({ type: "metadata", id: channel.id, streamerName: info.name }); }
+    catch { showMessage("스트리머 이름을 저장하지 못했습니다. 현재 재생은 유지됩니다.", true); }
+  }
+}
+
+function updateCardHeading(card, channel, index) {
+  const heading = channelHeading(channel, index, channelInfo.get(channel.id));
+  card.querySelector("strong").textContent = heading;
+  card.querySelector("strong").title = heading;
+  card.querySelector("iframe").title = heading;
+}
+function sizeFrame(target) {
+    const width = target.clientWidth;
+    const height = target.clientHeight;
+    const fit = fitFrame(width, height);
+    if (!fit) return;
+    const iframe = target.querySelector("iframe");
+    iframe.style.width = `${fit.width}px`;
+    iframe.style.height = `${fit.height}px`;
+    const rect = playerViews.get(iframe)?.rect;
+    const scale = rect ? Math.min(width / rect.width, height / rect.height) : fit.scale;
+    iframe.style.transform = `scale(${scale})`;
+    iframe.style.left = rect ? `${(width - rect.width * scale) / 2 - rect.x * scale}px` : "0px";
+    iframe.style.top = rect ? `${(height - rect.height * scale) / 2 - rect.y * scale}px` : "0px";
+    iframe.style.clipPath = rect ? `inset(${rect.y}px ${fit.width - rect.x - rect.width}px ${fit.height - rect.y - rect.height}px ${rect.x}px)` : "none";
+}
+const frameObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver((entries) => {
+  for (const { target } of entries) sizeFrame(target);
+});
+
+window.addEventListener("message", (event) => {
+  if (event.origin !== "https://chzzk.naver.com" || !["cheesemoa-player-bounds", "cheesemoa-player-ready"].includes(event.data?.type)) return;
+  for (const card of cards.values()) {
+    const iframe = card.querySelector("iframe");
+    const state = playerViews.get(iframe);
+    if (event.source !== iframe.contentWindow || !state) continue;
+    if (event.data.type === "cheesemoa-player-ready") {
+      iframe.contentWindow.postMessage({ type: "cheesemoa-measure-player", enabled: true }, "https://chzzk.naver.com");
+      return;
+    }
+    const rect = event.data.rect;
+    if (!rect || ![rect.x, rect.y, rect.width, rect.height].every(Number.isFinite) || rect.width <= 0 || rect.height <= 0) {
+      state.rect = null;
+      sizeFrame(card.querySelector(".frame-wrap"));
+      card.querySelector('[data-action="focus"]').title = "영상을 찾는 중입니다. 재생 후 다시 확인해주세요.";
+      return;
+    }
+    state.rect = rect;
+    card.querySelector('[data-action="focus"]').title = "이 칸의 원래 채널 화면으로 복원합니다";
+    sizeFrame(card.querySelector(".frame-wrap"));
+  }
+});
 
 function getAutoColumns(count) {
   if (count <= 1) return 1;
@@ -55,15 +121,36 @@ function createCard(channel, index) {
   const title = card.querySelector("strong");
   const type = card.querySelector("header span");
   const iframe = card.querySelector("iframe");
+  frameObserver?.observe(card.querySelector(".frame-wrap"));
   title.textContent = createDisplayName(channel, index);
-  type.textContent = channel.typeLabel;
+  type.hidden = true;
   iframe.src = channel.url;
   iframe.title = `${title.textContent} CHZZK 플레이어`;
   const external = card.querySelector('[data-action="external"]');
   external.href = channel.url;
 
+  card.querySelector('[data-action="focus"]').addEventListener("click", () => {
+    const enabled = !playerViews.has(iframe);
+    if (enabled) playerViews.set(iframe, { rect: null });
+    else playerViews.delete(iframe);
+    const button = card.querySelector('[data-action="focus"]');
+    button.textContent = enabled ? "채널 화면 복원" : "칸 안 영상 확대";
+    button.setAttribute("aria-pressed", String(enabled));
+    button.title = enabled ? "영상 영역을 확인 중입니다. 반응이 없으면 확장 프로그램과 페이지를 새로고침해주세요." : "이 칸의 영상만 확대합니다";
+    iframe.contentWindow.postMessage({ type: "cheesemoa-measure-player", enabled }, "https://chzzk.naver.com");
+    sizeFrame(card.querySelector(".frame-wrap"));
+  });
+  iframe.addEventListener("load", () => {
+    if (playerViews.has(iframe)) {
+      playerViews.get(iframe).rect = null;
+      sizeFrame(card.querySelector(".frame-wrap"));
+      iframe.contentWindow.postMessage({ type: "cheesemoa-measure-player", enabled: true }, "https://chzzk.naver.com");
+    }
+  });
+
   card.querySelector('[data-action="reload"]').addEventListener("click", () => {
     iframe.src = channel.url;
+    refreshChannelInfo(channel, card);
   });
   card.querySelector('[data-action="fullscreen"]').addEventListener("click", () => {
     card.requestFullscreen().catch(() => {
@@ -87,7 +174,8 @@ function renderSidebar() {
     const label = document.createElement("span");
     const remove = document.createElement("button");
     const rename = document.createElement("button");
-    label.textContent = createDisplayName(channel, index);
+    label.textContent = channelHeading(channel, index, channelInfo.get(channel.id));
+    label.title = label.textContent;
     remove.type = "button";
     remove.textContent = "×";
     remove.setAttribute("aria-label", `${label.textContent} 제거`);
@@ -111,7 +199,11 @@ function renderSidebar() {
 function render() {
   const ids = new Set(channels.map((channel) => channel.id));
   for (const [id, card] of cards) {
-    if (!ids.has(id)) { card.remove(); cards.delete(id); }
+    if (!ids.has(id)) {
+      frameObserver?.unobserve(card.querySelector(".frame-wrap"));
+      card.remove(); cards.delete(id);
+      channelInfo.delete(id);
+    }
   }
   channels.forEach((channel, index) => {
     let card = cards.get(channel.id);
@@ -119,14 +211,16 @@ function render() {
       card = createCard(channel, index);
       cards.set(channel.id, card);
       grid.append(card);
+      refreshChannelInfo(channel, card);
     }
-    card.querySelector("strong").textContent = createDisplayName(channel, index);
-    card.querySelector("iframe").title = `${createDisplayName(channel, index)} CHZZK 플레이어`;
+    updateCardHeading(card, channel, index);
   });
   const isEmpty = channels.length === 0;
   emptyState.hidden = !isEmpty;
   grid.hidden = isEmpty;
-  grid.style.setProperty("--columns", fixedColumns || getAutoColumns(channels.length));
+  const columns = fixedColumns || getAutoColumns(channels.length);
+  grid.style.setProperty("--columns", columns);
+  grid.style.setProperty("--rows", Math.max(1, Math.ceil(channels.length / columns)));
   renderSidebar();
 }
 
@@ -150,7 +244,9 @@ sidebarClose.addEventListener("click", () => setSidebar(false));
 emptyAddButton.addEventListener("click", () => setSidebar(true));
 scrim.addEventListener("click", () => setSidebar(false));
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") setSidebar(false);
+  if (event.key === "Escape") {
+    if (sidebar.classList.contains("open")) setSidebar(false);
+  }
 });
 
 addButton.addEventListener("click", async () => {

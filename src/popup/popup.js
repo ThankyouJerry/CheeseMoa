@@ -9,6 +9,9 @@ const openButton = document.querySelector("#open-button");
 const loginButton = document.querySelector("#login-button");
 const savedList = document.querySelector("#saved-list");
 const savedCount = document.querySelector("#saved-count");
+savedList.tabIndex = 0;
+savedList.setAttribute("role", "region");
+savedList.setAttribute("aria-label", "저장된 방송 목록, 스크롤 가능");
 
 let channels = [];
 
@@ -31,6 +34,7 @@ function render() {
     const dot = document.createElement("i");
     const label = document.createElement("span");
     label.textContent = createDisplayName(channel, index);
+    label.title = label.textContent;
     item.append(dot, label);
     savedList.append(item);
   });

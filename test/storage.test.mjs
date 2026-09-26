@@ -43,3 +43,19 @@ test("invalid stored data is filtered", () => {
   assert.deepEqual(normalizeChannels([null, {}, {url: "https://example.com"}]), []);
   assert.deepEqual(normalizeChannels({}), []);
 });
+
+test("last streamer name survives reload, blank metadata and duplicate add", async () => {
+  data = {};
+  await updateChannels({type: "add", items: [item(9)]});
+  await updateChannels({type: "metadata", id: "video:9", streamerName: "포포포포"});
+  await updateChannels({type: "metadata", id: "video:9", streamerName: ""});
+  await updateChannels({type: "add", items: [item(9)]});
+  assert.equal((await loadChannels())[0].streamerName, "포포포포");
+  const { createDisplayName } = await import("../src/shared/chzzk-url.js");
+  assert.equal(createDisplayName((await loadChannels())[0], 0), "채널 1 · 포포포포");
+  await updateChannels({type: "metadata", id: "video:9", streamerName: "새 이름"});
+  assert.equal((await loadChannels())[0].streamerName, "새 이름");
+  await updateChannels({type: "remove", id: "video:9"});
+  await updateChannels({type: "metadata", id: "video:9", streamerName: "늦게 온 응답"});
+  assert.deepEqual(await loadChannels(), []);
+});

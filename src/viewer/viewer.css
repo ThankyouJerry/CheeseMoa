@@ -10,8 +10,12 @@
 }
 
 * { box-sizing: border-box; }
-html, body { min-height: 100%; }
+html { height: 100%; }
 body {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   margin: 0;
   background: var(--navy-deep);
   color: var(--cream);
@@ -20,6 +24,7 @@ body {
 button, textarea { font: inherit; }
 button { cursor: pointer; }
 .topbar {
+  flex: 0 0 auto;
   position: sticky;
   top: 0;
   z-index: 20;
@@ -43,20 +48,29 @@ button { cursor: pointer; }
 .layout-controls button.active { background: var(--cheese); color: var(--navy-deep); }
 .outline-button { border-color: rgba(255,248,229,.18); padding-inline: 14px; }
 .top-actions { display: flex; justify-self: end; gap: 6px; }
-main { padding: 12px; }
-.viewer-grid { display: grid; grid-template-columns: repeat(var(--columns, 1), minmax(0, 1fr)); gap: 10px; }
-.viewer-card { min-width: 0; overflow: hidden; border: 1px solid rgba(255,248,229,.13); border-radius: 17px; background: #071b29; box-shadow: 0 16px 40px rgba(0,0,0,.22); }
+main { padding: 8px; flex: 1; min-height: 0; }
+.viewer-grid { height: 100%; display: grid; grid-template-columns: repeat(var(--columns, 1), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows, 1), minmax(0, 1fr)); gap: 8px; }
+.viewer-grid[hidden] { display: none; }
+.viewer-card { display: flex; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; border: 1px solid rgba(255,248,229,.13); border-radius: 17px; background: #071b29; box-shadow: 0 16px 40px rgba(0,0,0,.22); }
 .viewer-card > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 44px; padding: 0 9px 0 13px; background: rgba(23,59,87,.78); }
 .viewer-card > header > div:first-child { display: flex; align-items: center; min-width: 0; gap: 8px; }
 .viewer-card header i { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 0 4px rgba(255,107,74,.12); }
 .viewer-card header strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .viewer-card header span { flex: 0 0 auto; color: var(--slate); font-size: 9px; font-weight: 750; }
-.card-actions { display: flex; gap: 3px; }
+.viewer-card > header { flex: 0 0 36px; height: 36px; }
+.card-actions { display: flex; flex-shrink: 0; gap: 3px; }
 .card-actions a { align-self: center; color: var(--powder); font-size: 10px; white-space: nowrap; }
 .card-actions button { width: 29px; height: 29px; border: 0; border-radius: 8px; background: transparent; color: var(--powder); font-size: 15px; }
 .card-actions button:hover { background: rgba(255,255,255,.1); }
-.frame-wrap { aspect-ratio: 16 / 9; background: #030d14; }
-.frame-wrap iframe { display: block; width: 100%; height: 100%; border: 0; }
+.card-actions button[data-action="focus"], .card-actions button[data-action="fullscreen"] { width: auto; min-height: 36px; padding: 0 10px; font-size: 12px; white-space: nowrap; }
+.card-actions button[data-action="focus"] { background: var(--cheese); color: var(--navy-deep); font-weight: 800; }
+.viewer-card > header { height: auto; min-height: 44px; flex-basis: auto; flex-shrink: 0; flex-wrap: wrap; padding-block: 4px; gap: 4px 10px; }
+.viewer-card > header > div:first-child { flex: 1 1 140px; }
+.card-actions { margin-left: auto; flex-wrap: wrap; }
+.viewer-card[hidden] { display: none; }
+.frame-wrap { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #030d14; }
+.frame-wrap iframe { position: absolute; display: block; width: 100%; height: 100%; border: 0; transform-origin: top left; }
+.viewer-card:fullscreen { width: 100%; height: 100%; }
 .empty-state { min-height: calc(100vh - 100px); place-content: center; justify-items: center; text-align: center; }
 .empty-state:not([hidden]) { display: grid; }
 .empty-state img { width: 86px; height: 86px; }
@@ -103,5 +117,5 @@ main { padding: 12px; }
   .top-actions #login-button { display: none; }
   .layout-controls { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; justify-content: center; margin-top: 8px; }
   .layout-controls span { display: none; }
-  .viewer-grid { grid-template-columns: 1fr !important; }
+  .card-actions a, .viewer-card header span { display: none; }
 }

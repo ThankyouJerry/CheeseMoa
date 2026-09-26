@@ -49,5 +49,5 @@ export function parseChzzkUrls(value) {
 }
 
 export function createDisplayName(item, index) {
-  return item.name || `${item.typeLabel} ${index + 1} · ${item.resourceId.slice(0, 8)}`;
+  return `채널 ${index + 1} · ${item.name || item.streamerName || "스트리머 확인 전"}`;
 }

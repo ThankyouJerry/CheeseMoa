@@ -6,7 +6,11 @@ export function normalizeChannels(value) {
   const items = new Map();
   for (const item of Array.isArray(value) ? value : []) {
     const parsed = typeof item?.url === "string" && parseChzzkUrl(item.url);
-    if (parsed) items.set(parsed.id, { ...parsed, name: typeof item.name === "string" ? item.name.trim().slice(0, 60) : "" });
+    if (parsed) items.set(parsed.id, {
+      ...parsed, name: typeof item.name === "string" ? item.name.trim().slice(0, 60) : "",
+      ...(typeof item.streamerName === "string" && item.streamerName.trim()
+        ? { streamerName: item.streamerName.trim().slice(0, 100) } : {}),
+    });
   }
   return [...items.values()];
 }
@@ -46,6 +50,11 @@ export async function updateChannels(operation) {
     } else if (operation.type === "rename") {
       const item = channels.find((item) => item.id === operation.id);
       if (item) item.name = String(operation.name).trim().slice(0, 60);
+    } else if (operation.type === "metadata") {
+      const item = channels.find((item) => item.id === operation.id);
+      const name = typeof operation.streamerName === "string" ? operation.streamerName.trim().slice(0, 100) : "";
+      if (!item || !name || item.streamerName === name) return channels;
+      item.streamerName = name;
     } else throw new Error("Unknown operation");
     await saveChannels(channels);
     return channels;
