@@ -19,8 +19,10 @@ export function parseChzzkUrl(value) {
     return null;
   }
 
-  const [type, resourceId] = url.pathname.split("/").filter(Boolean);
+  const [type, resourceId, extra] = url.pathname.split("/").filter(Boolean);
   if (!PATH_TYPES.has(type) || !resourceId) return null;
+  if (!["http:", "https:"].includes(url.protocol) || extra || url.username || url.password) return null;
+  if (type === "video" ? !/^\d+$/.test(resourceId) : !/^[a-f0-9]{32}$/i.test(resourceId)) return null;
 
   const canonicalUrl = `https://${CHZZK_HOST}/${type}/${encodeURIComponent(resourceId)}`;
   return {
@@ -47,5 +49,5 @@ export function parseChzzkUrls(value) {
 }
 
 export function createDisplayName(item, index) {
-  return `${item.typeLabel} ${index + 1}`;
+  return item.name || `${item.typeLabel} ${index + 1} · ${item.resourceId.slice(0, 8)}`;
 }

@@ -1,5 +1,6 @@
 import { createDisplayName, parseChzzkUrls } from "../shared/chzzk-url.js";
-import { loadChannels, saveChannels } from "../shared/storage.js";
+import { loadChannels, updateChannels, subscribeChannels } from "../shared/storage.js";
+import { openViewerTab } from "../shared/open-viewer.js";
 
 const input = document.querySelector("#url-input");
 const message = document.querySelector("#message");
@@ -42,7 +43,7 @@ function showMessage(text, isError = false) {
 
 async function openViewer() {
   if (typeof chrome !== "undefined" && chrome.tabs && chrome.runtime) {
-    await chrome.tabs.create({ url: chrome.runtime.getURL("src/viewer/viewer.html") });
+    await openViewerTab();
     window.close();
     return;
   }
@@ -56,22 +57,26 @@ addButton.addEventListener("click", async () => {
     return;
   }
 
-  const merged = new Map(channels.map((channel) => [channel.id, channel]));
-  items.forEach((item) => merged.set(item.id, item));
-  channels = [...merged.values()];
-  await saveChannels(channels);
-  input.value = "";
-  showMessage(rejected.length ? `${items.length}개 추가 · 인식하지 못한 링크 ${rejected.length}개` : `${items.length}개 방송을 추가했습니다.`);
-  render();
-  await openViewer();
+  addButton.disabled = true;
+  try {
+    await updateChannels({ type: "add", items });
+    channels = await loadChannels();
+    input.value = rejected.join("\n");
+    showMessage(rejected.length ? `인식하지 못한 링크 ${rejected.length}개는 입력란에 남겼습니다.` : "목록에 반영했습니다. 중복 링크는 제외됩니다.", rejected.length > 0);
+    render();
+    if (!rejected.length) await openViewer();
+  } catch { showMessage("저장 또는 탭 열기에 실패했습니다. 다시 시도해주세요.", true); }
+  finally { addButton.disabled = false; }
 });
 
-openButton.addEventListener("click", openViewer);
+openButton.addEventListener("click", () => openViewer().catch(() => showMessage("멀티뷰 탭을 열지 못했습니다.", true)));
 loginButton.addEventListener("click", async () => {
   const url = "https://chzzk.naver.com/";
   if (typeof chrome !== "undefined" && chrome.tabs) await chrome.tabs.create({ url });
   else window.open(url, "_blank", "noopener");
 });
 
-channels = await loadChannels();
+subscribeChannels((nextChannels) => { channels = nextChannels; render(); });
+try { channels = await loadChannels(); }
+catch { showMessage("목록을 불러오지 못했습니다. 팝업을 다시 열어주세요.", true); }
 render();

@@ -46,7 +46,7 @@
       <p id="message" class="message" aria-live="polite">여러 링크를 한 번에 추가할 수 있습니다.</p>
       <button id="add-button" class="coral-button" type="button">목록에 추가</button>
       <div id="channel-list" class="channel-list"></div>
-      <p class="privacy-note">링크만 이 브라우저에 저장됩니다. 로그인 쿠키는 Chrome이 직접 관리합니다.</p>
+      <p class="privacy-note">링크·표시 이름·배치는 이 브라우저에 저장됩니다. 로그인 쿠키는 Chrome이 직접 관리합니다.</p>
     </aside>
     <div id="scrim" class="scrim"></div>
 
@@ -55,6 +55,7 @@
         <header>
           <div><i></i><strong></strong><span></span></div>
           <div class="card-actions">
+            <a data-action="external" target="_blank" rel="noopener noreferrer" aria-label="치지직에서 열기">치지직에서 열기</a>
             <button type="button" data-action="reload" aria-label="방송 새로고침">↻</button>
             <button type="button" data-action="fullscreen" aria-label="방송 전체화면">⛶</button>
             <button type="button" data-action="remove" aria-label="방송 제거">×</button>

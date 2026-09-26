@@ -16,6 +16,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - run: npm ci
       - run: npm test
       - run: npm run validate
       - run: npm run build
@@ -27,4 +28,4 @@ jobs:
           dist/CheeseMoa-*.zip
           dist/SHA256SUMS.txt
           --title "CheeseMoa $GITHUB_REF_NAME"
-          --generate-notes
+          --notes-file RELEASE_NOTES.md

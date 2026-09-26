@@ -3,13 +3,19 @@ import assert from "node:assert/strict";
 import { parseChzzkUrl, parseChzzkUrls } from "../src/shared/chzzk-url.js";
 
 test("라이브 링크를 정규화한다", () => {
-  assert.deepEqual(parseChzzkUrl("https://chzzk.naver.com/live/abc123?foo=bar"), {
-    id: "live:abc123",
+  assert.deepEqual(parseChzzkUrl("https://chzzk.naver.com/live/0123456789abcdef0123456789abcdef?foo=bar"), {
+    id: "live:0123456789abcdef0123456789abcdef",
     type: "live",
     typeLabel: "라이브",
-    resourceId: "abc123",
-    url: "https://chzzk.naver.com/live/abc123",
+    resourceId: "0123456789abcdef0123456789abcdef",
+    url: "https://chzzk.naver.com/live/0123456789abcdef0123456789abcdef",
   });
+});
+
+test("잘못된 ID와 추가 경로를 거부한다", () => {
+  for (const path of ["video/abc", "live/abc", "video/123/extra"]) {
+    assert.equal(parseChzzkUrl(`https://chzzk.naver.com/${path}`), null);
+  }
 });
 
 test("VOD 링크를 허용한다", () => {

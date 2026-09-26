@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { basename, join, resolve } from "node:path";
+import { basename, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = resolve(import.meta.dirname, "..");
+const root = fileURLToPath(new URL("../", import.meta.url));
 const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
 const version = packageJson.version;
 const distDir = join(root, "dist");
@@ -19,7 +20,8 @@ const packageEntries = [
   "src",
 ];
 
-await rm(distDir, { recursive: true, force: true });
+await rm(unpackedDir, { recursive: true, force: true });
+await rm(zipPath, { force: true });
 await mkdir(unpackedDir, { recursive: true });
 
 for (const entry of packageEntries) {

@@ -52,6 +52,7 @@ main { padding: 12px; }
 .viewer-card header strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .viewer-card header span { flex: 0 0 auto; color: var(--slate); font-size: 9px; font-weight: 750; }
 .card-actions { display: flex; gap: 3px; }
+.card-actions a { align-self: center; color: var(--powder); font-size: 10px; white-space: nowrap; }
 .card-actions button { width: 29px; height: 29px; border: 0; border-radius: 8px; background: transparent; color: var(--powder); font-size: 15px; }
 .card-actions button:hover { background: rgba(255,255,255,.1); }
 .frame-wrap { aspect-ratio: 16 / 9; background: #030d14; }
@@ -89,7 +90,7 @@ main { padding: 12px; }
 .message { min-height: 18px; margin: 8px 2px 10px; color: var(--slate); font-size: 11px; line-height: 1.5; }
 .message.error { color: #ff9b85; }
 .channel-list { display: grid; gap: 7px; max-height: calc(100vh - 410px); margin-top: 18px; overflow-y: auto; }
-.channel-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.06); }
+.channel-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 9px; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.06); }
 .channel-row i { width: 7px; height: 7px; border-radius: 50%; background: var(--cheese); }
 .channel-row span { overflow: hidden; font-size: 11px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
 .channel-row button { border: 0; background: transparent; color: var(--slate); font-size: 17px; }
