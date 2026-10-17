@@ -24,7 +24,9 @@ export function createRuntimeSimulation({mode='ok',onState=()=>{}}={}){
   }
   if(condition==='get-once'){condition='ok';return new Response(null,{status:503})}
   if(condition==='429-once'){condition='ok';return new Response(null,{status:429,headers:{'Retry-After':'120'}})}
-  if(condition==='preflight403'&&++networkCount===2)return new Response(null,{status:403});
+  networkCount++;
+  if(condition==='preflight-playback'&&networkCount%2===0)gate=false;
+  if(condition==='preflight403'&&networkCount===2)return new Response(null,{status:403});
   // Adversarial server repeats the same eligible reward even after success/lost PUT.
   return new Response(JSON.stringify({code:200,content:{active:true,amount:100,claims:[{claimId:'persistent-one',claimType:'WATCH_1_HOUR',state:'COMPLIED',saveType:'ACTIVE',amount:20}]}}));
  };
