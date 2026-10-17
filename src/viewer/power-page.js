@@ -3,7 +3,7 @@
 "use strict";
 
 // src/shared/power-build.js
-const POWER_BUILD = "power-20261017.8";
+const POWER_BUILD = "power-20261017.9";
 
 
 // src/shared/log-power.js
@@ -286,12 +286,12 @@ function createPagePowerOwner({send,getChannelId,onState,schedule=setTimeout,can
   if(!reply?.ok)throw Object.assign(new Error(reply?.error?.message||'수집 연결 응답을 확인하지 못했습니다.'),reply?.error||{});
   return reply.result;
  }
- const cancelStart=(id,channel)=>id?request('cancel-start',{startRequestId:id,channelId:channel}):Promise.resolve();
+ const cancelStart=(id,channel,remember=false)=>id?request('cancel-start',{startRequestId:id,channelId:channel,remember}):remember?request('disable-default'):Promise.resolve();
  const session=createPowerSession({schedule,cancel,now,getChannels:()=>channelId?[{id:channelId,resourceId:channelId,type:'live'}]:[],
   checkAccount:async()=>(await request('account')).accountId,collector:{collect:()=>request('collect')},
   onStatus(state){locallyEnabled=state.enabled===true;onState(state);if(!suspended&&['error','auth-required'].includes(state.status)&&epoch)void request('stop').catch(()=>{})}});
- return {
-  async start(){
+ const api={
+  async start({automatic=false}={}){
    const previousId=startRequestId,previousChannel=channelId;
    const turn=++generation;session.stop();epoch=null;channelId=getChannelId();suspended=false;startRequestId=requestId();
    const id=startRequestId,channel=channelId;
@@ -299,7 +299,7 @@ function createPagePowerOwner({send,getChannelId,onState,schedule=setTimeout,can
    if(!/^[a-f0-9]{32}$/i.test(channel||'')){onState({enabled:false,status:'error',detail:'재생할 방송을 선택하세요.'});return}
    onState({enabled:false,status:'connecting',canStop:true,detail:'자동수령 시작을 연결하고 있습니다. OFF로 취소할 수 있습니다.'});
    try{
-    const prepared=await request('start',{startRequestId:id,channelId:channel});
+    const prepared=await request('start',{startRequestId:id,channelId:channel,automatic});
     if(turn!==generation){await cancelStart(id,channel);return}
     epoch=prepared.epoch;
     const active=await request('activate',{startRequestId:id,channelId:channel});
@@ -310,17 +310,18 @@ function createPagePowerOwner({send,getChannelId,onState,schedule=setTimeout,can
     if(turn===generation)onState({enabled:false,status:'error',detail:saved?error.message:'이 화면의 조회는 중단했습니다. 시작 취소 저장은 아직 확인되지 않았습니다.'});
    }
   },
-  async stop(){generation++;suspended=false;session.stop();try{await cancelStart(startRequestId,channelId)}catch{onState({enabled:false,status:'error',detail:'이 화면의 조회는 중단했습니다. 실행 주체의 OFF 저장을 확인하지 못했습니다.'})}},
+  async stop({remember=false}={}){generation++;suspended=false;session.stop();try{await cancelStart(startRequestId,channelId,remember)}catch(error){onState({enabled:false,status:'error',detail:error.code==='POWER_PREFERENCE_SAVE_FAILED'?'자동수령을 중단했습니다. 다음 실행의 OFF 설정 저장은 확인하지 못했습니다.':'이 화면의 조회는 중단했습니다. 실행 주체의 OFF 저장을 확인하지 못했습니다.'})}},
   suspend(){generation++;suspended=true;session.stop()},
   deactivate(expectedEpoch){if(expectedEpoch!==epoch||!locallyEnabled)return;generation++;suspended=true;session.stop()},
   async restore(){
    const turn=++generation;channelId=getChannelId();suspended=false;
    if(!/^[a-f0-9]{32}$/i.test(channelId||''))return;
    try{const state=await request('status');if(turn!==generation)return;epoch=state.epoch;startRequestId=state.startRequestId;
-    if(state.enabled)session.start(state);else onState({enabled:false,status:'off',detail:state.otherEnabled?'다른 방송 창에서 자동수령 중입니다. 이 창에서 ON을 누르면 실행 창을 전환합니다.':'자동수령 OFF · 직접 ON을 눌러 시작하세요.'});
+    if(state.enabled)session.start(state);else if(state.defaultOn===true)await api.start({automatic:true});else onState({enabled:false,status:'off',detail:state.otherEnabled?'다른 방송 창에서 자동수령 중입니다. 이 창에서 ON을 누르면 실행 창을 전환합니다.':'자동수령 OFF · 직접 ON을 눌러 시작하세요.'});
    }catch{onState({enabled:false,status:'error',detail:'수집 연결을 확인하지 못했습니다. 자동수령은 시작하지 않았습니다.'})}
   },checkNow:()=>session.checkNow(),
  };
+ return api;
 }
 
 
@@ -365,20 +366,30 @@ function createPagePowerAgent({isPlaying,fetcher=fetch}) {
 // UI preferences only: never starts, stops, or otherwise controls the collector.
 function attachFloatingPowerPanel({holder,root,section,heading,storage,win=window}) {
   const key='cheesemoa.power.panel.v1';
+  // The multiview owns reserved layout space; docking changes presentation only.
+  const floatingStyle=holder.style.cssText;
+  let host=win.document.getElementById('cheesemoa-site-host');
+  let docked=win.location.origin==='https://chzzk.naver.com'&&win.location.pathname==='/lives'&&win.location.hash==='#cheesemoa-multiview'&&!!host?.shadowRoot?.querySelector('slot[name="cheesemoa-power-dock"]');
+  if(docked){
+    holder.slot='cheesemoa-power-dock';holder.dataset.panelLayout='docked';
+    holder.style.position='static';holder.style.inset='auto';holder.style.width='100%';holder.style.minWidth='0';holder.style.height='100%';
+    host.append(holder);host.dataset.powerDocked='true';
+  }
   const handle=win.document.createElement('button');handle.type='button';handle.className='panel-drag';
   handle.textContent='⠿ 패널 이동';handle.setAttribute('aria-label','자동수령 패널 이동');
-  handle.title='드래그 또는 방향키로 이동 · Home으로 기본 위치';
+  handle.title='드래그 또는 방향키로 이동 · Home으로 기본 위치';handle.hidden=docked;handle.disabled=docked;
   const help=win.document.createElement('span');help.id='panel-move-help';help.className='panel-sr';help.textContent='방향키로 이동, Shift와 방향키로 크게 이동, Home으로 기본 위치';handle.setAttribute('aria-describedby',help.id);
   const hide=win.document.createElement('button');hide.type='button';hide.textContent='패널 숨기기';hide.setAttribute('aria-expanded','true');
   const restore=win.document.createElement('button');restore.type='button';restore.textContent='🪵 자동수령 패널 표시';restore.hidden=true;restore.setAttribute('aria-expanded','true');
   section.id='power-panel-body';hide.setAttribute('aria-controls',section.id);restore.setAttribute('aria-controls',section.id);
   const toolbar=win.document.createElement('div');toolbar.className='panel-toolbar';toolbar.append(handle,hide,help);heading.after(toolbar);root.append(restore);
   const css=win.document.createElement('style');css.textContent='[hidden]{display:none!important}.panel-toolbar{display:flex;gap:4px;justify-content:space-between}.panel-drag{cursor:move;touch-action:none;user-select:none}.panel-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}section{max-height:calc(100dvh - 16px);overflow:auto}';root.append(css);
+  if(docked){section.style.maxHeight='100%';section.style.boxSizing='border-box';section.style.overflow='auto';}
   holder.style.pointerEvents='none';section.style.pointerEvents='auto';restore.style.pointerEvents='auto';
   let position=null,hidden=false,drag=null,revision=0,writing=false,pending=null;
   const finite=n=>typeof n==='number'&&Number.isFinite(n);
   function clamp(x,y){const box=holder.getBoundingClientRect();return {x:Math.max(8,Math.min(x,Math.max(8,win.innerWidth-box.width-8))),y:Math.max(8,Math.min(y,Math.max(8,win.innerHeight-box.height-8)))}}
-  function place(x,y){position=clamp(x,y);holder.style.left=position.x+'px';holder.style.top=position.y+'px';holder.style.right='auto';holder.style.bottom='auto'}
+  function place(x,y){if(docked){position={x,y};return;}position=clamp(x,y);holder.style.left=position.x+'px';holder.style.top=position.y+'px';holder.style.right='auto';holder.style.bottom='auto'}
   async function flush(){
     if(writing)return;
     writing=true;
@@ -393,17 +404,37 @@ function attachFloatingPowerPanel({holder,root,section,heading,storage,win=windo
   function persist(){revision++;pending={hidden,position:position?{...position}:null};void flush()}
   function visibility(value,focus=false){hidden=value;section.hidden=hidden;restore.hidden=!hidden;hide.setAttribute('aria-expanded',String(!hidden));restore.setAttribute('aria-expanded',String(!hidden));if(position)place(position.x,position.y);if(focus)(hidden?restore:hide).focus()}
   hide.addEventListener('click',()=>{visibility(true,true);persist()});restore.addEventListener('click',()=>{visibility(false,true);persist()});
-  handle.addEventListener('pointerdown',event=>{if(event.button!==0)return;const box=holder.getBoundingClientRect();drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:box.left,top:box.top};revision++;handle.setPointerCapture?.(event.pointerId);event.preventDefault()});
+  handle.addEventListener('pointerdown',event=>{if(docked||event.button!==0)return;const box=holder.getBoundingClientRect();drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:box.left,top:box.top};revision++;handle.setPointerCapture?.(event.pointerId);event.preventDefault()});
   handle.addEventListener('pointermove',event=>{if(!drag||drag.id!==event.pointerId)return;place(drag.left+event.clientX-drag.x,drag.top+event.clientY-drag.y)});
   function end(event){if(!drag||drag.id!==event.pointerId)return;drag=null;persist()}
   handle.addEventListener('pointerup',end);handle.addEventListener('pointercancel',end);handle.addEventListener('lostpointercapture',end);
-  handle.addEventListener('keydown',event=>{const delta={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[event.key];if(event.key==='Home'){position=null;holder.style.left='';holder.style.top='';holder.style.right='16px';holder.style.bottom='16px'}else if(delta){const box=holder.getBoundingClientRect(),step=event.shiftKey?40:10;place(box.left+delta[0]*step,box.top+delta[1]*step)}else return;event.preventDefault();persist()});
-  function reclamp(){if(position){const before={...position};place(position.x,position.y);if(position.x!==before.x||position.y!==before.y)persist()}}
+  handle.addEventListener('keydown',event=>{if(docked)return;const delta={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[event.key];if(event.key==='Home'){position=null;holder.style.left='';holder.style.top='';holder.style.right='16px';holder.style.bottom='16px'}else if(delta){const box=holder.getBoundingClientRect(),step=event.shiftKey?40:10;place(box.left+delta[0]*step,box.top+delta[1]*step)}else return;event.preventDefault();persist()});
+  function reclamp(){if(!docked&&position){const before={...position};place(position.x,position.y);if(position.x!==before.x||position.y!==before.y)persist()}}
   win.addEventListener('resize',reclamp);
   // Content/status text can resize the panel independently of the viewport.
   if(win.ResizeObserver)new win.ResizeObserver(reclamp).observe(holder);
+  // Host lifecycle events rehome synchronously; the existing channel poll also catches SPA changes.
+  function syncLayout(){
+    const nextHost=win.document.getElementById('cheesemoa-site-host');
+    const nextDocked=win.location.origin==='https://chzzk.naver.com'&&win.location.pathname==='/lives'&&win.location.hash==='#cheesemoa-multiview'&&!!nextHost?.shadowRoot?.querySelector('slot[name="cheesemoa-power-dock"]');
+    if(nextDocked===docked&&(!docked||nextHost===host))return;
+    if(host)delete host.dataset.powerDocked;
+    docked=nextDocked;host=nextHost;handle.hidden=docked;handle.disabled=docked;drag=null;
+    if(docked){
+      holder.slot='cheesemoa-power-dock';holder.dataset.panelLayout='docked';
+      holder.style.position='static';holder.style.inset='auto';holder.style.width='100%';holder.style.minWidth='0';holder.style.height='100%';
+      section.style.maxHeight='100%';section.style.boxSizing='border-box';section.style.overflow='auto';
+      host.append(holder);host.dataset.powerDocked='true';
+    }else{
+      holder.removeAttribute('slot');delete holder.dataset.panelLayout;holder.style.cssText=floatingStyle;holder.style.pointerEvents='none';
+      section.style.maxHeight='';section.style.boxSizing='';section.style.overflow='';
+      win.document.documentElement.append(holder);if(position)place(position.x,position.y);
+    }
+  }
+  win.addEventListener('cheesemoa-power-layout-change',syncLayout);
   const initialRevision=revision;
   Promise.resolve().then(()=>storage?.get?.(key)).then(data=>{if(revision!==initialRevision)return;const value=data?.[key];if(!value||typeof value!=='object')return;visibility(value.hidden===true);if(finite(value.position?.x)&&finite(value.position?.y))place(value.position.x,value.position.y)}).catch(()=>{});
+  return syncLayout;
 }
 
 
@@ -446,10 +477,12 @@ if(window===window.top&&location.origin==='https://chzzk.naver.com'&&
   const detail=document.createElement('p');section.append(detail);
   const counts=document.createElement('p');counts.textContent='이 실행의 확정 수령 0건 · 최근 조회 없음';section.append(counts);
   const receiptPanel=attachPowerReceiptPanel({section,document});
+  let syncPanelLayout=()=>{};
   let enabled=false,confirmed=0,lastCheck=null,poll,restoredForChoices=false;
   function frames(){return [...(document.querySelector('#cheesemoa-site-host')?.shadowRoot?.querySelectorAll('iframe')||[])]}
   function playing(channel){try{const doc=location.pathname===`/live/${channel}`?document:frames().find(f=>f.src===`https://chzzk.naver.com/live/${channel}`)?.contentDocument;return !!doc&&[...doc.querySelectorAll('video,audio')].some(v=>!v.paused&&v.readyState>=2)}catch{return false}}
   function syncChannels(){
+   syncPanelLayout();
    const currentDirect=location.pathname.match(/^\/live\/([a-f0-9]{32})$/i)?.[1];
    if(currentDirect!==direct){void owner.stop();direct=currentDirect;restoredForChoices=true;}
    const choices=direct?[{id:direct,name:`현재 방송 (${direct.slice(0,8)}…)`}]:frames().map(f=>({id:f.src.match(/\/live\/([a-f0-9]{32})$/i)?.[1],name:f.title})).filter(c=>c.id);
@@ -484,9 +517,9 @@ if(window===window.top&&location.origin==='https://chzzk.naver.com'&&
   let connected=false;
   function connect(){if(connected)return;connected=true;chrome.runtime.onMessage.addListener(listener);poll=setInterval(syncChannels,1000)}
   function disconnect(){if(!connected)return;connected=false;clearInterval(poll);chrome.runtime.onMessage.removeListener(listener);restoredForChoices=false;owner.suspend()}
-  on.addEventListener('click',()=>void owner.start());off.addEventListener('click',()=>void owner.stop());select.addEventListener('change',()=>void owner.stop());
+  on.addEventListener('click',()=>void owner.start());off.addEventListener('click',()=>void owner.stop({remember:true}));select.addEventListener('change',()=>void owner.stop());
   document.documentElement.append(holder);
-  attachFloatingPowerPanel({holder,root,section,heading,storage:chrome.storage?.local});
+  syncPanelLayout=attachFloatingPowerPanel({holder,root,section,heading,storage:chrome.storage?.local})||(()=>{});
   connect();syncChannels();
   // Discover player starts without restarting or changing any existing player.
   const observer=new MutationObserver(()=>syncChannels());const host=document.querySelector('#cheesemoa-site-host')?.shadowRoot;if(host)observer.observe(host,{childList:true,subtree:true});

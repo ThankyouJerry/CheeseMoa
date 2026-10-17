@@ -12,9 +12,22 @@
   container.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#091c29';
   const root = container.attachShadow({mode:'open'});
   const style = document.createElement('style');
-  style.textContent = `:host{color:#f3f7fa;font:15px/1.5 system-ui,sans-serif}*{box-sizing:border-box}main{height:100vh;overflow:auto;padding:20px;background:#091c29}header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}h1{margin:0;font-size:24px}h1 small{display:block;color:#9eb4c3;font-size:12px}button,select,a{font:inherit}button,select{border:1px solid #617c8d;border-radius:10px;background:#19384c;color:white;padding:9px 13px;cursor:pointer}button:disabled{opacity:.5;cursor:default}.primary{background:#ffc83d;color:#172c38;border-color:#ffc83d;font-weight:800}a{color:#ffdc78}nav{display:flex;gap:8px;align-items:center}.note{color:#b5cad7;font-size:13px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:14px;margin-top:20px}article{border:1px solid #36556b;border-radius:16px;overflow:hidden;background:#102d40}article header{padding:12px}article h2{font-size:15px;margin:0}article .actions{display:flex;flex-wrap:wrap;gap:8px;padding:0 12px 12px}.screen{aspect-ratio:16/9;background:#050e15;display:grid;place-items:center}.screen p{padding:25px;text-align:center;color:#b5cad7}iframe{border:0;width:100%;height:100%;display:block}.state{padding:10px 12px;margin:0;font-size:12px;color:#a9c4d6}.empty{padding:35px}.notice{border:1px solid #ffc83d60;border-radius:12px;padding:12px}.volume{width:80px}button:focus-visible,a:focus-visible,select:focus-visible{outline:3px solid #ffc83d;outline-offset:3px}`;
+  style.textContent = `.workspace{display:grid;height:100%;min-height:0;grid-template-columns:minmax(0,1fr)}.power-dock{display:none;min-width:0;min-height:0;overflow:auto;padding:8px 8px 8px 0}:host([data-power-docked="true"]) .workspace{grid-template-columns:minmax(0,1fr) 280px}:host([data-power-docked="true"]) .power-dock{display:block}
+:host{color:#f3f7fa;font:13px/1.4 system-ui,sans-serif}*{box-sizing:border-box}[hidden]{display:none!important}
+main{height:100vh;height:100dvh;min-height:0;display:flex;flex-direction:column;gap:6px;overflow:hidden;padding:8px;background:#091c29}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}main>header{flex:none;flex-wrap:wrap}h1{margin:0;font-size:18px}h1 small{display:block;color:#9eb4c3;font-size:11px}
+button,select,a{font:inherit}button,select{min-height:28px;min-width:0;border:1px solid #617c8d;border-radius:7px;background:#19384c;color:white;padding:3px 7px;cursor:pointer}button:disabled{opacity:.5;cursor:default}.primary{background:#ffc83d;color:#172c38;border-color:#ffc83d;font-weight:800}a{color:#ffdc78}nav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.note{color:#b5cad7;font-size:11px;margin:0;flex:none}
+.help{flex:none;font-size:11px;color:#b5cad7}.help summary{cursor:pointer}.help[open]{max-height:100px;overflow:auto}.notice{padding:6px;border:1px solid #ffc83d60;border-radius:7px}
+.grid{display:grid;flex:1;min-width:0;min-height:0;grid-template-columns:repeat(var(--columns,2),minmax(0,1fr));grid-template-rows:repeat(var(--rows,2),minmax(0,1fr));gap:8px}
+article{display:grid;grid-template-rows:28px 34px minmax(0,1fr) 24px;min-width:0;min-height:0;border:1px solid #36556b;border-radius:10px;overflow:hidden;background:#102d40}article header{padding:3px 8px}article h2{font-size:13px;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}article header a{flex:none;font-size:11px}article .actions{display:flex;align-items:center;gap:4px;padding:2px 6px;overflow-x:auto;white-space:nowrap}article .actions>*{flex-shrink:0}article .actions select{width:120px;min-width:100px;flex-shrink:0}
+.screen{position:relative;min-height:0;min-width:0;overflow:hidden;background:#050e15;display:grid;place-items:center}.screen p{padding:12px;text-align:center;color:#b5cad7;font-size:12px}iframe{border:0;width:100%;height:100%;display:block}.state{padding:4px 8px;margin:0;font-size:11px;color:#a9c4d6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.empty{padding:20px}.volume{width:64px}button:focus-visible,a:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #ffc83d;outline-offset:2px}
+@media(max-width:1100px){article{grid-template-rows:28px 64px minmax(0,1fr) 24px}article .actions{flex-wrap:wrap;align-content:center;overflow:auto}}
+@media(max-width:900px){:host([data-power-docked="true"]) .workspace{grid-template-columns:minmax(0,1fr);grid-template-rows:max-content 280px;overflow:auto}.power-dock{height:280px;max-height:280px;padding:8px}}
+@media(max-width:640px),(max-height:480px){.workspace{overflow:auto;grid-template-rows:max-content}main{height:auto;min-height:100vh;min-height:100dvh;overflow:visible}.grid{flex:none;grid-template-columns:minmax(0,1fr);grid-template-rows:none;grid-auto-rows:300px}article .actions select{min-width:100px}}`;
   root.append(style);
-  const main = document.createElement('main'); root.append(main);
+  const workspace=document.createElement('div');workspace.className='workspace';root.append(workspace);
+  const main = document.createElement('main');workspace.append(main);
+  const dock=document.createElement('aside');dock.className='power-dock';dock.setAttribute('aria-label','자동수령 패널');const dockSlot=document.createElement('slot');dockSlot.name='cheesemoa-power-dock';dock.append(dockSlot);workspace.append(dock);
   const heading = document.createElement('header'); main.append(heading);
   const title = document.createElement('h1'); title.textContent = '🧀 치즈모아 멀티뷰';
   const subtitle = document.createElement('small'); subtitle.textContent = '치지직 동일 출처 · 방송은 직접 시작'; title.append(subtitle); heading.append(title);
@@ -23,7 +36,7 @@
   const layoutLabel=document.createElement('label');layoutLabel.textContent='동시에 볼 방송 수 ';
   const layout = document.createElement('select'); layout.setAttribute('aria-label','동시에 볼 방송 수');layout.disabled=true;
   layoutLabel.append(layout);nav.append(layoutLabel);
-  const notice = document.createElement('p'); notice.className='note notice';notice.textContent=`최대 ${MAX_ACTIVE}개를 이 화면에서 시청합니다. 방송 시작 전에는 플레이어를 불러오지 않습니다. 방송을 시작한 뒤 화면 오른쪽 아래 ‘치즈모아 자동수령’에서 해당 방송을 선택하고 ON을 누르세요. 관리 창을 열어둘 필요가 없습니다. 실제 ON·최근 조회·확정 수령은 자동수령 패널에서 확인하세요.`;main.append(notice);
+  const notice = document.createElement('p'); notice.className='note notice';notice.textContent=`최대 ${MAX_ACTIVE}개를 이 화면에서 시청합니다. 방송 시작 전에는 플레이어를 불러오지 않습니다. 자동수령 패널에서 수집할 방송과 ON/OFF 상태를 확인하세요. 새 설정은 기본 ON이며 저장한 OFF와 현재 실행의 OFF는 유지합니다. 관리 창을 열어둘 필요가 없습니다. 실제 ON·최근 조회·확정 수령은 자동수령 패널에서 확인하세요.`;const help=document.createElement('details');help.className='help';const summary=document.createElement('summary');summary.textContent='시청·자동수령 안내';help.append(summary,notice);main.append(help);
   const status=document.createElement('p');status.className='note';status.setAttribute('role','status');main.append(status);
   const grid=document.createElement('section');grid.className='grid';grid.setAttribute('aria-label','멀티뷰 방송 목록');main.append(grid);
   const active=new Map(); let disposed=false;
@@ -101,10 +114,13 @@
   }
 
   function media(frame){try{return [...frame.contentDocument.querySelectorAll('video,audio')];}catch{return [];}}
-  function stop(id){const item=active.get(id);if(!item)return;clearInterval(item.timer);item.cleanupAudio();item.frame.remove();active.delete(id);item.start.disabled=false;item.stop.disabled=true;item.state.textContent='정지됨 · 이 창의 플레이어만 닫았습니다.';}
+  function stop(id){const item=active.get(id);if(!item)return;clearInterval(item.timer);item.cleanupAudio();item.cleanupLayout();item.frame.remove();active.delete(id);item.start.disabled=false;item.start.hidden=false;item.stop.disabled=true;item.state.textContent='정지됨 · 이 창의 플레이어만 닫았습니다.';}
   function cleanup(){
     if(disposed)return;
-    disposed=true;for(const id of [...active.keys()])stop(id);container.remove();
+    disposed=true;for(const id of [...active.keys()])stop(id);
+    const panel=container.querySelector(':scope > #cheesemoa-power-control[slot="cheesemoa-power-dock"]');
+    if(panel)document.documentElement.append(panel);
+    container.remove();window.dispatchEvent(new Event('cheesemoa-power-layout-change'));
     chrome.runtime?.onMessage?.removeListener(powerListener);
     window.removeEventListener('hashchange',routeChanged);window.removeEventListener('popstate',routeChanged);
   }
@@ -125,6 +141,8 @@
       for(let count=1;count<=slotCount;count++) {const o=document.createElement('option');o.value=String(count);o.textContent=`${count}개 보기`;layout.append(o);}
       layout.value=String(slotCount);layout.disabled=!slotCount;
       function syncSlots(){
+        grid.style.setProperty('--columns',slotCount===1?'1':'2');
+        grid.style.setProperty('--rows',String(Math.max(1,Math.ceil(slotCount/2))));
         for(const [url,item] of cards){
           item.card.hidden=!visible.includes(url);
           item.picker.value=url;item.picker.disabled=active.has(url);
@@ -164,7 +182,7 @@
         const screen=document.createElement('div');screen.className='screen';card.append(screen);
         const placeholder=document.createElement('p');placeholder.textContent='방송 시작을 누르면 이 칸에서 재생합니다.\n다른 방송 시청은 통나무 시청 집계 대상에 영향을 줄 수 있습니다.';screen.append(placeholder);
         const state=document.createElement('p');state.className='state';state.textContent='방송 시작 전 · 수집 상태는 자동수령 패널에서 확인';card.append(state);
-        let muted=true,trackedMedia=[];
+        let muted=true,trackedMedia=[],focusVideo=true;
         function updateAudioLabel(){mute.textContent=muted?'음소거 ON':'음소거 OFF';}
         function applyAudio(items){for(const v of items){if(v.muted!==muted)v.muted=muted;const level=Number(volume.value)/100;if(v.volume!==level)v.volume=level;}}
         function nativeAudio(event){
@@ -183,6 +201,28 @@
           trackedMedia=items;applyAudio(added);
         }
         function commandAudio(){const frame=active.get(channel.url)?.frame;if(frame){const items=media(frame);syncAudio(items);applyAudio(items);}}
+        function fitPlayer(){
+          const frame=active.get(channel.url)?.frame,width=screen.clientWidth,height=screen.clientHeight;
+          if(!frame||width<=0||height<=0)return;
+          // Keep a stable desktop viewport; only transform this existing iframe.
+          // Match fitFrame's contain scaling, then focus the measured video when available.
+          let rect=null;
+          if(focusVideo)try{
+            const doc=frame.contentDocument;
+            if(doc&&new URL(doc.URL).href===channel.url){
+              rect=[...doc.querySelectorAll('video')].filter(v=>v.readyState>=2).map(v=>v.getBoundingClientRect())
+                .filter(b=>[b.x,b.y,b.width,b.height].every(Number.isFinite)&&b.x>=0&&b.y>=0&&b.width>0&&b.height>0&&b.x+b.width<=1280&&b.y+b.height<=720)
+                .sort((a,b)=>b.width*b.height-a.width*a.height)[0]||null;
+            }
+          }catch{ /* Loading/login/inaccessible documents retain their whole page. */ }
+          const scale=rect?Math.min(width/rect.width,height/rect.height):Math.min(width/1280,height/720);
+          const styles={position:'absolute',width:'1280px',height:'720px',transformOrigin:'top left',transform:`scale(${scale})`,
+            left:`${rect?(width-rect.width*scale)/2-rect.x*scale:(width-1280*scale)/2}px`,
+            top:`${rect?(height-rect.height*scale)/2-rect.y*scale:(height-720*scale)/2}px`,
+            clipPath:rect?`inset(${rect.y}px ${1280-rect.x-rect.width}px ${720-rect.y-rect.height}px ${rect.x}px)`:'none'};
+          for(const [key,value]of Object.entries(styles))if(frame.style[key]!==value)frame.style[key]=value;
+          frame.dataset.cheesemoaView=rect?'video':'page';
+        }
         const start=button('방송 시작',()=>{
           if(!isHostRoute()){cleanup();return;}
           if(active.has(channel.url))return;
@@ -196,7 +236,7 @@
           const timer=setInterval(()=>{
             if(!isHostRoute()){cleanup();return;}
             if(disposed || !frame.isConnected){clearInterval(timer);return;}
-            const items=media(frame);syncAudio(items);let blank=false;
+            const items=media(frame);syncAudio(items);fitPlayer();let blank=false;
             try{const doc=frame.contentDocument;blank=doc?.URL==='about:blank'&&doc.readyState==='complete'&&!!doc.body&&!doc.body.childNodes.length;if(doc&&doc.URL!=='about:blank')sawDocument=true;}catch{}
             if(items.length)sawDocument=true;
             blankChecks=blank&&!sawDocument&&!items.length?blankChecks+1:0;
@@ -210,19 +250,23 @@
             frame.dataset.cheesemoaLoadState=items.length?(mediaReady(items)?'playing':'media-pending'):(retried?'retrying-blank':'loading');
             state.textContent=items.length?(mediaReady(items)?'재생 중 · 시청 집계는 치지직 서버 기준':items.some(v=>!v.paused)?'버퍼링 · 재생 준비 대기 · 보상 요청 대기':'일시정지 · 플레이어에서 재생 가능'):(retried?'빈 문서 재연결 중 · 추가 자동 재시도 없음':'플레이어 로딩 중…');
           },1000);
-          active.set(channel.url,{frame,timer,start,stop:stopButton,state,cleanupAudio});start.disabled=true;stopButton.disabled=false;screen.replaceChildren(frame);frame.src=channel.url;
+          const observer=typeof ResizeObserver==='function'?new ResizeObserver(fitPlayer):null;observer?.observe(screen);
+          const cleanupLayout=()=>observer?.disconnect();
+          active.set(channel.url,{frame,timer,start,stop:stopButton,state,cleanupAudio,cleanupLayout});start.disabled=true;start.hidden=true;stopButton.disabled=false;screen.replaceChildren(frame);fitPlayer();frame.src=channel.url;
           syncSlots();
         },actions);start.className='primary';
         const stopButton=button('정지',()=>{stop(channel.url);screen.replaceChildren(placeholder);syncSlots();},actions);stopButton.disabled=true;
         const mute=button('음소거 ON',()=>{muted=!muted;updateAudioLabel();commandAudio();},actions);
         const volume=document.createElement('input');volume.type='range';volume.min='0';volume.max='100';volume.value='50';volume.className='volume';volume.setAttribute('aria-label',`${label.textContent} 음량`);actions.append(volume);
         volume.addEventListener('input',commandAudio);
+        const view=button('전체 페이지',()=>{focusVideo=!focusVideo;view.textContent=focusVideo?'전체 페이지':'영상 맞춤';fitPlayer();},actions);view.title='같은 방송을 유지하며 영상 맞춤 또는 공식 페이지 전체를 표시합니다.';
         button('전체화면',()=>{card.requestFullscreen?.().catch(()=>{state.textContent='전체화면을 열지 못했습니다.';});},actions);
       }
       syncSlots();
     }catch{status.textContent='저장 목록을 읽지 못했습니다. 확장 상태를 확인하세요. 기존 방송과 수집기는 변경하지 않았습니다.';}
   }
   document.documentElement.append(container);
+  window.dispatchEvent(new Event('cheesemoa-power-layout-change'));
   window.addEventListener('pagehide',()=>{restoreOnShow=!disposed;cleanup();},{once:true});
   void render();
   }
