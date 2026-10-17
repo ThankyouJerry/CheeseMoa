@@ -1,0 +1,55 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {JSDOM} from 'jsdom';
+const tick=()=>new Promise(r=>setImmediate(r));
+const channel=id=>({url:`https://chzzk.naver.com/video/${id}`,id:`video:${id}`,resourceId:String(id),type:"video",typeLabel:"다시보기",name:""});
+
+test('startup, saved additions, deletion and legacy preset restore never activate a fifth player',async()=>{
+ const dom=new JSDOM(await readFile(new URL('../src/viewer/viewer.html',import.meta.url),'utf8'),{url:'https://test.invalid'});
+ Object.assign(globalThis,{document:dom.window.document,window:dom.window,localStorage:dom.window.localStorage,fetch:async()=>{throw Error('offline');}});
+ let notify;let queue=Promise.resolve();
+ const preset={id:'six',name:'Legacy six',channels:[1,2,3,4,5,6].map(channel),columns:2};
+ let data={'cheesemoa.channels':preset.channels,'cheesemoa.presets.v1':[preset]};
+ Object.defineProperty(globalThis,'navigator',{configurable:true,value:{locks:{request(_,fn){const p=queue.then(fn);queue=p.catch(()=>{});return p;}}}});
+ globalThis.chrome={storage:{local:{get:async()=>structuredClone(data),set:async patch=>{data={...data,...structuredClone(patch)};queueMicrotask(()=>notify?.(Object.fromEntries(Object.entries(patch).map(([key,newValue])=>[key,{newValue}])),'local'));}},onChanged:{addListener(fn){notify=fn;},removeListener(){}}}};
+ window.confirm=()=>true;
+ await import('../src/viewer/viewer.js');await tick();
+ const frames=()=>[...document.querySelectorAll('iframe')];
+ const choose=(index,value=true)=>{const input=document.querySelectorAll('.channel-row input')[index];input.checked=value;input.dispatchEvent(new window.Event('change'));return input;};
+ const apply=()=>document.querySelector('#legacy-apply').click();
+ assert.equal(frames().length,0);assert.equal(data['cheesemoa.channels'].length,6);
+ const presetPanel=document.querySelector('#preset-panel');presetPanel.querySelector('input').value='Saved before playback';presetPanel.querySelector('button').click();await tick();await tick();
+ assert.equal(data['cheesemoa.presets.v1'][1].channels.length,6);
+ for(let i=0;i<4;i++)choose(i);apply();assert.equal(frames().length,4);
+ assert.equal(choose(4).checked,false);assert.match(document.querySelector('#message').textContent,/기존 선택을 해제/);apply();assert.equal(frames().length,4);
+ document.querySelector('.channel-row button[aria-label$="제거"]').click();await tick();await tick();
+ assert.equal(data['cheesemoa.channels'].length,5);assert.equal(frames().length,3);
+ assert.equal(choose(3).checked,true);apply();assert.equal(frames().length,4);
+ document.querySelector('[aria-label="Legacy six 불러오기"]').click();await tick();await tick();
+ assert.equal(data['cheesemoa.channels'].length,6);assert.equal(frames().length,0);assert.deepEqual(data['cheesemoa.presets.v1'][0],preset);
+ for(let i=0;i<4;i++)choose(i);apply();const before=frames();
+ document.querySelector('#url-input').value=channel(7).url;document.querySelector('#add-button').click();await tick();await tick();
+ assert.equal(data['cheesemoa.channels'].length,7);assert.deepEqual(frames(),before);
+ assert.equal(choose(6).checked,false);choose(0,false);choose(6);apply();
+ assert.equal(frames().length,4);assert.ok(frames().some(f=>f.src===channel(7).url));assert.equal(data['cheesemoa.channels'].length,7);
+ const link=document.querySelector('[data-action="external"]');assert.match(link.href,/^https:\/\/chzzk.naver.com\/video\//);assert.equal(link.target,'_blank');assert.match(link.rel,/noopener/);
+ assert.match(document.querySelector('.playback-help').textContent,/차단 여부를 자동 판정하지 않습니다/);
+ await tick();await tick();dom.window.close();
+});
+
+test('adding fifth saved channel retains four players until an explicit replacement',async()=>{
+ const dom=new JSDOM(await readFile(new URL('../src/viewer/viewer.html',import.meta.url),'utf8'),{url:'https://test.invalid'});
+ Object.assign(globalThis,{document:dom.window.document,window:dom.window,localStorage:dom.window.localStorage,fetch:async()=>{throw Error('offline');}});
+ let notify;let queue=Promise.resolve();let data={'cheesemoa.channels':[1,2,3,4].map(channel)};
+ Object.defineProperty(globalThis,'navigator',{configurable:true,value:{locks:{request(_,fn){const p=queue.then(fn);queue=p.catch(()=>{});return p;}}}});
+ globalThis.chrome={storage:{local:{get:async()=>structuredClone(data),set:async patch=>{data={...data,...structuredClone(patch)};queueMicrotask(()=>notify?.(Object.fromEntries(Object.entries(patch).map(([key,newValue])=>[key,{newValue}])),'local'));}},onChanged:{addListener(fn){notify=fn;},removeListener(){}}}};
+ await import('../src/viewer/viewer.js?four-start');await tick();
+ const frames=()=>[...document.querySelectorAll('iframe')];const original=frames();assert.equal(original.length,4);
+ document.querySelector('#url-input').value=channel(5).url;document.querySelector('#add-button').click();await tick();await tick();
+ assert.equal(data['cheesemoa.channels'].length,5);assert.deepEqual(frames(),original);assert.equal(document.querySelectorAll('.channel-row input:checked').length,4);
+ const boxes=document.querySelectorAll('.channel-row input');boxes[4].checked=true;boxes[4].dispatchEvent(new window.Event('change'));assert.equal(boxes[4].checked,false);
+ boxes[0].checked=false;boxes[0].dispatchEvent(new window.Event('change'));boxes[4].checked=true;boxes[4].dispatchEvent(new window.Event('change'));document.querySelector('#legacy-apply').click();
+ assert.equal(frames().length,4);assert.ok(frames().some(f=>f.src===channel(5).url));assert.equal(data['cheesemoa.channels'].length,5);
+ await tick();await tick();dom.window.close();
+});

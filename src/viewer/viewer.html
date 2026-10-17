@@ -6,6 +6,7 @@
     <title>치즈모아 멀티뷰</title>
     <link rel="icon" href="../../assets/brand/cheesemoa-mark.svg" />
     <link rel="stylesheet" href="viewer.css" />
+    <link rel="stylesheet" href="../shared/login-session.css" />
   </head>
   <body>
     <header class="topbar">
@@ -21,6 +22,7 @@
         <button type="button" data-columns="3">3열</button>
       </div>
       <div class="top-actions">
+        <button id="power-button" class="outline-button" type="button">🪵 모은 통나무 · 보유량·이력</button>
         <button id="login-button" class="outline-button" type="button">CHZZK 로그인</button>
         <button id="sidebar-toggle" class="outline-button" type="button">방송 목록</button>
       </div>
@@ -41,12 +43,15 @@
         <div><strong>방송 목록</strong><span id="channel-count">0개</span></div>
         <button id="sidebar-close" type="button" aria-label="방송 목록 닫기">×</button>
       </div>
-      <label for="url-input">CHZZK 링크</label>
+      <section id="discovery-panel" class="sidebar-section" aria-label="방송 찾기"></section>
+      <label for="url-input">CHZZK 링크 · 저장 목록과 동시 재생(최대 4개)은 별도</label>
       <textarea id="url-input" rows="5" placeholder="https://chzzk.naver.com/live/...&#10;https://chzzk.naver.com/video/..."></textarea>
       <p id="message" class="message" aria-live="polite">여러 링크를 한 번에 추가할 수 있습니다.</p>
       <button id="add-button" class="coral-button" type="button">목록에 추가</button>
+      <div id="legacy-selection" hidden><p>저장 목록은 보존됩니다. 동시에 볼 방송을 최대 4개 선택하세요. 교체하려면 기존 선택을 해제한 뒤 보기 버튼을 누르세요.</p><button id="legacy-apply" type="button">선택한 방송 보기</button></div>
       <div id="channel-list" class="channel-list"></div>
-      <p class="privacy-note">링크·표시 이름·배치는 이 브라우저에 저장됩니다. 로그인 쿠키는 Chrome이 직접 관리합니다.</p>
+      <section id="preset-panel" class="sidebar-section" aria-label="프리셋"></section>
+      <p class="privacy-note">링크·표시 이름·배치·음량·프리셋은 이 브라우저에 저장됩니다. 로그인 쿠키는 Chrome이 직접 관리합니다.</p>
     </aside>
     <div id="scrim" class="scrim"></div>
 
@@ -55,17 +60,45 @@
         <header>
           <div><i></i><strong></strong><span></span></div>
           <div class="card-actions">
+            <button type="button" data-action="mute" aria-pressed="false" disabled title="플레이어를 기다리는 중입니다">음소거</button>
             <button type="button" data-action="focus" aria-pressed="false" title="다른 칸은 유지하고 이 칸의 영상만 확대합니다">칸 안 영상 확대</button>
-            <a data-action="external" target="_blank" rel="noopener noreferrer" aria-label="치지직에서 열기">치지직에서 열기</a>
+            <a data-action="external" target="_blank" rel="noopener noreferrer" aria-label="일반 플레이어 열기">일반 플레이어 열기</a>
             <button type="button" data-action="reload" aria-label="방송 새로고침">↻</button>
             <button type="button" data-action="fullscreen" aria-label="선택 채널 전체화면" title="선택 채널 전체화면">전체화면</button>
             <button type="button" data-action="remove" aria-label="방송 제거">×</button>
           </div>
         </header>
+        <div class="audio-strip">
+          <label>음량 <input data-action="volume" type="range" min="0" max="100" step="1" value="50" aria-label="채널 음량" disabled /></label>
+          <output data-volume-label>50%</output>
+          <button type="button" data-action="solo" aria-pressed="false" disabled>혼자 듣기</button>
+        </div>
+        <p class="playback-help">내장 화면이 비어 있거나 재생되지 않으면 위의 일반 플레이어 열기를 이용하세요. 사이트 정책·연결 문제일 수 있으며, 차단 여부를 자동 판정하지 않습니다. 새 탭의 음량은 치지직에서 조절합니다.</p>
         <div class="frame-wrap"><iframe allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>
       </article>
     </template>
 
+    <dialog id="power-dialog" aria-labelledby="power-title">
+      <header><h2 id="power-title">모은 통나무 <small>보유량 · 수령 이력</small></h2><button id="power-close" type="button">닫기</button></header>
+      <section class="power-summary" aria-label="통나무 수령 요약">
+        <p id="power-balance" role="status">통나무파워 보유량: 아직 확인하지 않았습니다.</p>
+        <div class="power-metrics"><div><span>확장 수령 · 저장 기록</span><strong id="power-total">확인 중</strong></div><div><span>이 창을 연 이후 · 선택 채널</span><strong id="power-session-total">확인 중</strong></div></div>
+        <p id="power-summary-scope">현재 계정의 성공 기록만 집계합니다.</p>
+        <p>제공 보상량 합계입니다. 시청 자동 적립·사용·예측 결과에 따른 잔액 변동은 합계에 넣지 않습니다. 과거 획득량을 역산하지 않습니다.</p>
+      </section>
+      <label>보상 확인 주 채널 <select id="power-main-channel"><option value="">주 채널을 선택하세요</option></select></label>
+      <label><input id="power-enabled" type="checkbox" disabled /> 자동수령은 방송 화면에서 ON/OFF · 이 창은 이력 조회 전용</label>
+      <p>동시에 여러 방송을 시청해도 시청 시간은 한 방송만 집계됩니다. 여기서 선택한 채널은 보상 확인 대상이며, 서버의 시청 시간 집계 대상이나 적립을 보장하지 않습니다. 새 시청 창에서는 다시 선택하세요. <a href="https://help.naver.com/service/30044/contents/24337?lang=ko&amp;osType=COMMONOS" target="_blank" rel="noopener noreferrer">치지직 공식 안내</a></p>
+      <p>기본은 꺼짐이며 창을 다시 열면 꺼집니다. 현재 멀티뷰의 라이브 채널만 확인합니다. 다시보기·베팅·자동 팔로우는 처리하지 않습니다.</p>
+      <p id="power-status" role="status">자동 획득 꺼짐</p>
+
+      <p>서버가 수령 가능으로 표시한 시청·팔로우·후원·구독 선물 보상만 받습니다. 팔로우·후원·구독 자체를 실행하지 않으며, 일반 자동 적립이나 보상 발생을 만들지 않습니다. 보유량은 조회 시점의 통나무파워이며 치즈 잔액이 아닙니다.</p>
+      <p>시각은 이 PC에서 성공 응답을 확인한 시간입니다. 새 내역은 현재 계정의 로컬 식별값으로 구분합니다. 이전 계정 미구분 기록은 별도로 표시합니다. 계정이 바뀌거나 식별을 확인할 수 없으면 자동 획득을 중단합니다.</p>
+      <div class="power-tools"><label>채널 <select id="power-filter"><option value="">모든 채널</option></select></label><button id="power-refresh" type="button">이력 새로고침</button><button id="power-clear" type="button">성공 내역 삭제</button></div>
+      <ul id="power-history"></ul>
+      <p id="power-build"></p>
+      <p>최근 성공 내역 1,000건과 중복 방지 기록 최대 2,000건을 이 브라우저에만 저장합니다. 쿠키 값을 읽거나 저장하지 않지만, 치지직 API 요청에는 브라우저의 로그인 세션이 사용됩니다. 실제 수령 동작은 검증 중입니다.</p>
+    </dialog>
     <script type="module" src="viewer.js"></script>
   </body>
 </html>

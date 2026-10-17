@@ -1,7 +1,12 @@
 import { createDisplayName, parseChzzkUrls } from "../shared/chzzk-url.js";
-import { loadChannels, updateChannels, subscribeChannels } from "../shared/storage.js";
+import { loadChannels, updateChannels, subscribeChannels, loadLayout, saveLayout, MAX_ACTIVE_CHANNELS } from "../shared/storage.js";
 import { fitFrame } from "../shared/frame-layout.js";
 import { loadChannelInfo, channelHeading } from "../shared/channel-info.js";
+import { bindLoginCheck } from "../shared/login-session.js";
+import { bindPowerPanel } from "./power-panel.js";
+import { createAudioController } from "./audio-controller.js";
+import { bindPresetPanel } from "./preset-panel.js";
+import { bindDiscoveryPanel } from "./discovery-panel.js";
 
 const grid = document.querySelector("#viewer-grid");
 const emptyState = document.querySelector("#empty-state");
@@ -20,17 +25,40 @@ const channelCount = document.querySelector("#channel-count");
 const layoutButtons = [...document.querySelectorAll("[data-columns]")];
 
 let channels = [];
+let discoveryPanel = null;
 let fixedColumns = 0;
 try { fixedColumns = Number(localStorage.getItem("cheesemoa.columns")) || 0; } catch {}
 if (![0, 1, 2, 3].includes(fixedColumns)) fixedColumns = 0;
 const cards = new Map();
 const playerViews = new WeakMap();
+const audioController = createAudioController(text => { setSidebar(true); showMessage(text, true); });
+const selectedLegacy = new Set();
+let visibleLegacy = new Set();
+let manualSelection = false;
+const visibleChannels = () => manualSelection ? channels.filter(item => visibleLegacy.has(item.id)) : channels;
+function adoptChannels(next, reset = false) {
+  if (reset) {
+    manualSelection = next.length > MAX_ACTIVE_CHANNELS;
+    visibleLegacy.clear(); selectedLegacy.clear();
+  } else if (!manualSelection && next.length > MAX_ACTIVE_CHANNELS) {
+    // Adding saved entries must not start a fifth player or stop the existing four.
+    manualSelection = true;
+    visibleLegacy = new Set(channels.map(item => item.id));
+    selectedLegacy.clear();
+    for (const id of visibleLegacy) selectedLegacy.add(id);
+  }
+  channels = next;
+  const known = new Set(channels.map(item => item.id));
+  for (const id of selectedLegacy) if (!known.has(id)) selectedLegacy.delete(id);
+  for (const id of visibleLegacy) if (!known.has(id)) visibleLegacy.delete(id);
+}
+function syncAudio(iframe, loading = false) { audioController.sync(iframe, loading); }
 const channelInfo = new Map();
 
 async function refreshChannelInfo(channel, card) {
   let info;
   try { info = await loadChannelInfo(channel); }
-  catch { info = { name: "", title: "정보 조회 실패 · 재생은 계속됩니다" }; }
+  catch { info = { name: "", title: "정보 조회 실패 · 재생 상태는 화면에서 확인하세요" }; }
   if (cards.get(channel.id) !== card) return;
   channelInfo.set(channel.id, info);
   updateCardHeading(card, channels.find((item) => item.id === channel.id), channels.findIndex((item) => item.id === channel.id));
@@ -67,15 +95,21 @@ const frameObserver = typeof ResizeObserver === "undefined" ? null : new ResizeO
 });
 
 window.addEventListener("message", (event) => {
-  if (event.origin !== "https://chzzk.naver.com" || !["cheesemoa-player-bounds", "cheesemoa-player-ready"].includes(event.data?.type)) return;
+  if (event.origin !== "https://chzzk.naver.com" || !["cheesemoa-player-bounds", "cheesemoa-player-ready", "cheesemoa-audio-state"].includes(event.data?.type)) return;
   for (const card of cards.values()) {
     const iframe = card.querySelector("iframe");
     const state = playerViews.get(iframe);
-    if (event.source !== iframe.contentWindow || !state) continue;
-    if (event.data.type === "cheesemoa-player-ready") {
-      iframe.contentWindow.postMessage({ type: "cheesemoa-measure-player", enabled: true }, "https://chzzk.naver.com");
+    if (event.source !== iframe.contentWindow) continue;
+    if (event.data.type === "cheesemoa-audio-state") {
+      audioController.receive(iframe, event.data);
       return;
     }
+    if (event.data.type === "cheesemoa-player-ready") {
+      syncAudio(iframe);
+      if (state) iframe.contentWindow.postMessage({ type: "cheesemoa-measure-player", enabled: true }, "https://chzzk.naver.com");
+      return;
+    }
+    if (!state) continue;
     const rect = event.data.rect;
     if (!rect || ![rect.x, rect.y, rect.width, rect.height].every(Number.isFinite) || rect.width <= 0 || rect.height <= 0) {
       state.rect = null;
@@ -111,7 +145,7 @@ function showMessage(text, isError = false) {
 async function removeChannel(id) {
   try {
     await updateChannels({ type: "remove", id });
-    channels = await loadChannels();
+    adoptChannels(await loadChannels());
     render();
   } catch { showMessage("저장하지 못했습니다. 다시 시도해주세요.", true); }
 }
@@ -121,6 +155,7 @@ function createCard(channel, index) {
   const title = card.querySelector("strong");
   const type = card.querySelector("header span");
   const iframe = card.querySelector("iframe");
+  audioController.attach(card, channel);
   frameObserver?.observe(card.querySelector(".frame-wrap"));
   title.textContent = createDisplayName(channel, index);
   type.hidden = true;
@@ -141,6 +176,8 @@ function createCard(channel, index) {
     sizeFrame(card.querySelector(".frame-wrap"));
   });
   iframe.addEventListener("load", () => {
+    card.querySelector('[data-action="mute"]').disabled = true;
+    syncAudio(iframe, true);
     if (playerViews.has(iframe)) {
       playerViews.get(iframe).rect = null;
       sizeFrame(card.querySelector(".frame-wrap"));
@@ -167,10 +204,19 @@ function createCard(channel, index) {
 function renderSidebar() {
   channelCount.textContent = `${channels.length}개`;
   channelList.replaceChildren();
+  document.querySelector("#legacy-selection").hidden = !manualSelection;
   channels.forEach((channel, index) => {
     const row = document.createElement("div");
     row.className = "channel-row";
-    const dot = document.createElement("i");
+    const dot = document.createElement(manualSelection ? "input" : "i");
+    if (manualSelection) {
+      dot.type = "checkbox"; dot.checked = selectedLegacy.has(channel.id);
+      dot.setAttribute("aria-label", `${channel.name || channel.resourceId} 보기 선택`);
+      dot.onchange = () => {
+        if (dot.checked && selectedLegacy.size >= MAX_ACTIVE_CHANNELS) { dot.checked = false; showMessage("동시 재생은 최대 4개입니다. 기존 선택을 해제한 뒤 다른 방송을 선택해 주세요.", true); return; }
+        if (dot.checked) selectedLegacy.add(channel.id); else selectedLegacy.delete(channel.id);
+      };
+    }
     const label = document.createElement("span");
     const remove = document.createElement("button");
     const rename = document.createElement("button");
@@ -187,7 +233,7 @@ function renderSidebar() {
       if (name === null) return;
       try {
         await updateChannels({ type: "rename", id: channel.id, name });
-        channels = await loadChannels();
+        adoptChannels(await loadChannels());
         render();
       } catch { showMessage("이름을 저장하지 못했습니다.", true); }
     });
@@ -196,16 +242,17 @@ function renderSidebar() {
   });
 }
 
-function render() {
-  const ids = new Set(channels.map((channel) => channel.id));
+function render(restoreAudio = false) {
+  const showing = visibleChannels();
+  const ids = new Set(showing.map((channel) => channel.id));
   for (const [id, card] of cards) {
     if (!ids.has(id)) {
       frameObserver?.unobserve(card.querySelector(".frame-wrap"));
-      card.remove(); cards.delete(id);
+      card.remove(); cards.delete(id); audioController.detach(id);
       channelInfo.delete(id);
     }
   }
-  channels.forEach((channel, index) => {
+  showing.forEach((channel, index) => {
     let card = cards.get(channel.id);
     if (!card) {
       card = createCard(channel, index);
@@ -214,14 +261,19 @@ function render() {
       refreshChannelInfo(channel, card);
     }
     updateCardHeading(card, channel, index);
+    card.style.order = String(index);
+    audioController.update(channel, {force: restoreAudio});
   });
-  const isEmpty = channels.length === 0;
+  const isEmpty = showing.length === 0;
+  emptyState.querySelector("h1").textContent = channels.length ? "재생할 방송을 선택해 주세요." : "모아볼 방송을 추가해 주세요.";
+  emptyState.querySelector("p").textContent = channels.length ? "저장된 목록은 그대로 유지됩니다. 방송 목록에서 최대 4개를 선택한 뒤 보기 버튼을 누르세요." : "오른쪽 방송 목록에서 CHZZK 링크를 한 줄에 하나씩 입력하면 바로 시작됩니다.";
   emptyState.hidden = !isEmpty;
   grid.hidden = isEmpty;
-  const columns = fixedColumns || getAutoColumns(channels.length);
+  const columns = fixedColumns || getAutoColumns(showing.length);
   grid.style.setProperty("--columns", columns);
-  grid.style.setProperty("--rows", Math.max(1, Math.ceil(channels.length / columns)));
+  grid.style.setProperty("--rows", Math.max(1, Math.ceil(showing.length / columns)));
   renderSidebar();
+  if (discoveryPanel) void discoveryPanel.refreshSaved().catch(() => showMessage("저장 목록을 갱신하지 못했습니다.", true));
 }
 
 layoutButtons.forEach((button) => {
@@ -230,15 +282,19 @@ layoutButtons.forEach((button) => {
     layoutButtons.forEach((item) => item.classList.toggle("active", item === button));
     try { localStorage.setItem("cheesemoa.columns", String(fixedColumns)); }
     catch { setSidebar(true); showMessage("화면 배치를 저장하지 못했습니다.", true); }
+    void saveLayout(fixedColumns).catch(() => {setSidebar(true);showMessage("배치를 저장하지 못했습니다.", true);});
     render();
   });
 });
 
 sidebarToggle.addEventListener("click", () => setSidebar(true));
-loginButton.addEventListener("click", async () => {
-  const url = "https://chzzk.naver.com/";
-  if (typeof chrome !== "undefined" && chrome.tabs) await chrome.tabs.create({ url });
-  else window.open(url, "_blank", "noopener");
+bindLoginCheck(loginButton, () => {
+  if (cards.size && window.confirm("로그인된 세션으로 모든 방송을 다시 불러올까요? 현재 재생이 다시 시작됩니다.")) {
+    for (const channel of channels) {
+      const card = cards.get(channel.id);
+      if (card) card.querySelector("iframe").src = channel.url;
+    }
+  }
 });
 sidebarClose.addEventListener("click", () => setSidebar(false));
 emptyAddButton.addEventListener("click", () => setSidebar(true));
@@ -259,21 +315,42 @@ addButton.addEventListener("click", async () => {
   addButton.disabled = true;
   try {
     await updateChannels({ type: "add", items });
-    channels = await loadChannels();
+    adoptChannels(await loadChannels());
     input.value = rejected.join("\n");
-    showMessage(rejected.length ? `인식하지 못한 링크 ${rejected.length}개는 입력란에 남겼습니다.` : "목록에 반영했습니다. 중복 링크는 제외됩니다.", rejected.length > 0);
+    showMessage(rejected.length ? `인식하지 못한 링크 ${rejected.length}개는 입력란에 남겼습니다.` : manualSelection ? "목록에 저장했습니다. 동시 재생은 최대 4개입니다. 방송 목록에서 기존 선택을 해제해 교체하세요." : "목록에 반영했습니다. 중복 링크는 제외됩니다.", rejected.length > 0);
     render();
-  } catch { showMessage("저장하지 못했습니다. 입력은 유지됩니다. 다시 시도해주세요.", true); }
+  } catch (error) { showMessage("저장하지 못했습니다. 입력은 유지됩니다.", true); }
   finally { addButton.disabled = false; }
 });
 
-subscribeChannels((nextChannels) => {
-  channels = nextChannels;
+subscribeChannels((nextChannels, columns) => {
+  adoptChannels(nextChannels);
+  if ([0,1,2,3].includes(columns)) {
+    fixedColumns = columns;
+    layoutButtons.forEach(button => button.classList.toggle("active", Number(button.dataset.columns) === fixedColumns));
+  }
   render();
 });
 
-try { channels = await loadChannels(); }
+try { adoptChannels(await loadChannels(), true); fixedColumns = await loadLayout(); }
 catch { showMessage("목록을 불러오지 못했습니다. 새로고침해주세요.", true); }
 render();
 layoutButtons.forEach((button) => button.classList.toggle("active", Number(button.dataset.columns) === fixedColumns));
-setSidebar(channels.length === 0);
+setSidebar(channels.length === 0 || manualSelection);
+document.querySelector("#legacy-apply").onclick = () => { visibleLegacy = new Set(selectedLegacy); render(); };
+if (manualSelection) showMessage("기존 목록을 보존했습니다. 동시에 볼 방송을 최대 4개 선택해 주세요.");
+bindPowerPanel(visibleChannels);
+discoveryPanel = bindDiscoveryPanel(document.querySelector("#discovery-panel"), {
+  onAdded(next) { adoptChannels(next); render(); showMessage("선택한 방송을 저장했습니다. 동시 재생은 최대 4개이며 방송 목록에서 선택합니다."); },
+  onError(error) { showMessage(error.message || "방송 목록을 확인하지 못했습니다.", true); },
+});
+bindPresetPanel(document.querySelector("#preset-panel"), {
+  snapshot: () => ({channels: audioController.snapshot(channels), columns: fixedColumns}),
+  async apply(preset) {
+    const next = await updateChannels({type: "replace", items: preset.channels, columns: preset.columns});
+    adoptChannels(next, true); fixedColumns = preset.columns;
+    render(true); audioController.clearSolo();
+    if (manualSelection) { setSidebar(true); showMessage("프리셋의 모든 방송을 보존했습니다. 재생할 방송을 최대 4개 선택해 주세요."); }
+    layoutButtons.forEach(button => button.classList.toggle("active", Number(button.dataset.columns) === fixedColumns));
+  },
+});

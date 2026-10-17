@@ -60,3 +60,16 @@ button:disabled { cursor: not-allowed; opacity: .45; box-shadow: none; }
 .saved-item i { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: var(--cheese); box-shadow: 0 0 0 2px var(--navy); }
 .saved-item span { overflow: hidden; font-size: 11px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
 .empty { color: var(--slate); font-size: 11px; text-align: center; padding: 10px 0 4px; }
+
+.power-card { padding: 16px; margin-bottom: 12px; border-radius: 20px; background: var(--navy); color: white; }
+.power-card h2 { font-size: 18px; }
+.power-card .power-caption, #popup-power-status { font-size: 11px; line-height: 1.5; color: #ddecf2; }
+.power-number { display: block; font-size: 23px; line-height: 1.35; color: #ffcf59; }
+.power-card ul { margin: 10px 0; padding: 0; list-style: none; }
+.power-card li { border-top: 1px solid #ffffff30; padding: 9px 0; font-size: 12px; overflow-wrap: anywhere; }
+.power-card li strong, .power-card li span { display: block; }
+.power-card li span { margin-top: 4px; color: #ddecf2; font-size: 11px; line-height: 1.5; }
+.power-card summary { cursor: pointer; padding: 10px 0; font-weight: 750; }
+.power-card .login-button { color: white; border-color: #ffffff60; }
+.power-card .session-note { color: #ddecf2; }
+#popup-power-history { max-height: 220px; overflow-y: auto; }

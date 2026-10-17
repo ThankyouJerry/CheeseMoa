@@ -7,16 +7,34 @@ assert.equal(manifest.version, packageJson.version);
 assert.equal(manifest.minimum_chrome_version, "116");
 assert.equal(manifest.manifest_version, 3);
 assert.equal(manifest.name, "치즈모아 - CheeseMoa");
-assert.deepEqual(manifest.host_permissions, ["https://chzzk.naver.com/*", "https://api.chzzk.naver.com/*"]);
+assert.deepEqual(manifest.host_permissions, ["https://chzzk.naver.com/*", "https://api.chzzk.naver.com/*", "https://comm-api.game.naver.com/*"]);
 assert.deepEqual(manifest.permissions, ["storage"]);
 
 const requiredFiles = [
   manifest.action.default_popup,
+  manifest.background.service_worker,
+  "src/viewer/power-page.js",
+  "src/background/power-coordinator.js",
   "src/viewer/viewer.html",
   "src/shared/storage.js",
+  "src/shared/presets.js",
+  "src/shared/channel-discovery.js",
+  "src/viewer/audio-controller.js",
+  "src/viewer/preset-panel.js",
+  "src/viewer/discovery-panel.js",
   "src/shared/open-viewer.js",
   "src/shared/chzzk-url.js",
   "src/shared/channel-info.js",
+  "src/shared/login-session.js",
+  "src/shared/login-session.css",
+  "src/shared/log-power.js",
+  "src/shared/power-build.js",
+  "src/shared/power-summary.js",
+  "src/popup/popup-power.js",
+  "src/viewer/site-host.js",
+  "src/shared/power-collector.js",
+  "src/shared/power-session.js",
+  "src/viewer/power-panel.js",
   "src/shared/frame-layout.js",
   "src/viewer/viewer.js",
   "src/viewer/player-frame.js",
