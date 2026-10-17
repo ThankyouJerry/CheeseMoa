@@ -188,7 +188,11 @@ for (const status of [401, 403, 409, 429]) {
       h.calls.push("PUT");
       return new Response(null, {status});
     };
-    await assert.rejects(h.create().collect(channel, {enabled: true, accountId: account}));
+    if (status === 409) {
+      const result = await h.create().collect(channel, {enabled: true, accountId: account});
+      assert.equal(result.collected, 0);
+      assert.equal(result.diagnostics.alreadyHandled, 1);
+    } else await assert.rejects(h.create().collect(channel, {enabled: true, accountId: account}));
     const state = await h.create().history(account);
     assert.equal(state.receipts.length, 0);
     assert.equal(state.attempts[0].status, status === 409 ? "already-claimed" : "unconfirmed");

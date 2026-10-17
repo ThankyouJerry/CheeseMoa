@@ -3,7 +3,7 @@
 "use strict";
 
 // src/shared/power-build.js
-const POWER_BUILD = "power-20261017.6";
+const POWER_BUILD = "power-20261017.7";
 
 
 // src/shared/log-power.js
@@ -225,7 +225,7 @@ function createPowerSession({ collector, getChannels, checkAccount, onStatus,
       // This never applies to PUT or an unknown/dispatched mutation.
       if(error.code==='POWER_PLAYBACK_WAIT'&&error.method==='GET'&&error.mutationDispatched===false){
         delay=15000;retryAt=now()+delay;
-        publish('playback-wait','재생 준비를 기다립니다. 15초 간격으로 로컬 재생 상태만 확인하며, 준비되기 전에는 보상 요청을 보내지 않습니다. ON 설정은 유지됩니다.');
+        publish('playback-wait',`${error.collectionResult?.collected ? `${error.collectionResult.collected}건 수령 확인 · 보유량 조회 대기. ` : ''}재생 준비를 기다립니다. 15초 간격으로 로컬 재생 상태만 확인하며, 준비되기 전에는 보상 요청을 보내지 않습니다. ON 설정은 유지됩니다.`,error.collectionResult);
         return;
       }
       if (Number.isInteger(error.failures)) failures = Math.max(0, error.failures - (error.code === "POWER_BACKOFF" ? 0 : 1));
@@ -238,7 +238,9 @@ function createPowerSession({ collector, getChannels, checkAccount, onStatus,
       } else {
         enabled = false; generation++; cancel(timer); timer = undefined; retryAt = 0;
         const auth = error.code === "LOGGED_OUT" || error.status === 401;
-        const detail = ["MAIN_CHANNEL_REQUIRED", "POWER_HOST_REQUIRED", "POWER_LOCK_TIMEOUT"].includes(error.code) ? `${error.message}${failures > 5 ? " 연결 조회 재시도 한도에 도달하여 중단했습니다." : ""}` : error.code === "ACCOUNT_CHANGED" ?
+        const detail = error.code === "POWER_ATTEMPT_LIMIT" ?
+          "중복 방지 기록 2,000건 한도에 도달하여 자동수령을 중단했습니다. 기존 수령·미확인 기록은 보존되며 새 수령 요청은 보내지 않습니다. 기록을 지워 재시도하지 마세요." :
+          ["MAIN_CHANNEL_REQUIRED", "POWER_HOST_REQUIRED", "POWER_LOCK_TIMEOUT"].includes(error.code) ? `${error.message}${failures > 5 ? " 연결 조회 재시도 한도에 도달하여 중단했습니다." : ""}` : error.code === "ACCOUNT_CHANGED" ?
           "계정 변경 또는 로그아웃이 감지되어 중단했습니다. 미확인 요청은 자동 재시도하지 않습니다." : auth ?
           "로그인 세션을 확인하지 못해 중단했습니다. 로그인 후 직접 다시 켜주세요." :
           error.status === 403 ? "보상 요청이 거부되어 중단했습니다. 자격이나 접근 상태를 직접 확인해주세요." :
@@ -248,7 +250,8 @@ function createPowerSession({ collector, getChannels, checkAccount, onStatus,
           failures > 5 ? "조회 재시도 한도에 도달하여 중단했습니다. 연결 상태를 확인한 뒤 직접 다시 켜주세요." :
           /계정 식별|중복 방지 기록 한도|요청 중 계정/.test(error.message) ? error.message :
           "확인 또는 저장에 실패하여 중단했습니다. 수령 여부가 불명확한 요청은 이력에서 확인하세요.";
-        publish(auth ? "auth-required" : "error", detail, error.collectionResult);
+        const confirmed = error.collectionResult?.collected ? `${error.collectionResult.collected}건 수령 확인 및 기록 저장 완료. 후속 확인 또는 저장은 완료하지 못했습니다. ` : "";
+        publish(auth ? "auth-required" : "error", confirmed + detail, error.collectionResult);
       }
     } finally {
       pendingLock = undefined; running = false;
@@ -331,7 +334,9 @@ function createPagePowerAgent({isPlaying,fetcher=fetch}) {
     let mutationDispatched=false;
     try{
       if(!/^[a-f0-9]{32}$/i.test(id||''))throw new Error('INVALID_CHANNEL');
-      if(!isPlaying(id))return {build:POWER_BUILD,status:0,error:'POWER_PLAYBACK_WAIT',mutationDispatched:false,phase:'eligibility'};
+      // Account identity is freshly verified even if playback stopped after PUT.
+      // Balance and claim requests remain gated on the selected player's state.
+      if(!(request.kind==='account'&&request.postMutationIdentity===true)&&!isPlaying(id))return {build:POWER_BUILD,status:0,error:'POWER_PLAYBACK_WAIT',mutationDispatched:false,phase:'eligibility'};
       const base=`https://api.chzzk.naver.com/service/v1/channels/${id}/log-power`;
       let url,method='GET';
       if(request.kind==='account')url='https://comm-api.game.naver.com/nng_main/v1/user/getUserStatus';
@@ -447,7 +452,7 @@ if(window===window.top&&location.origin==='https://chzzk.naver.com'&&
   function syncChannels(){
    const currentDirect=location.pathname.match(/^\/live\/([a-f0-9]{32})$/i)?.[1];
    if(currentDirect!==direct){void owner.stop();direct=currentDirect;restoredForChoices=true;}
-   const choices=direct?[{id:direct,name:document.title.split(' - ')[0]||'현재 방송'}]:frames().map(f=>({id:f.src.match(/\/live\/([a-f0-9]{32})$/i)?.[1],name:f.title})).filter(c=>c.id);
+   const choices=direct?[{id:direct,name:`현재 방송 (${direct.slice(0,8)}…)`}]:frames().map(f=>({id:f.src.match(/\/live\/([a-f0-9]{32})$/i)?.[1],name:f.title})).filter(c=>c.id);
    const current=select.value;
    if(enabled){if(!choices.some(c=>c.id===current))void owner.stop();return;}
    select.replaceChildren();for(const c of choices){const option=document.createElement('option');option.value=c.id;option.textContent=c.name;select.append(option)}

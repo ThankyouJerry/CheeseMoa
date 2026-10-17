@@ -93,7 +93,7 @@ export function createPowerCoordinator({chromeApi=chrome,locks=navigator.locks,n
     const identity=await account(),collector=createPowerCollector({storage:chromeApi.storage.local,locks,fetcher:transport.fetcher,now});
     const result=await collector.collect(c.channelId,{enabled:true,accountId:identity,signal:controller.signal,
      isCurrent:async()=>{if(!same(await read(),c,epoch))return false;await account();return same(await read(),c,epoch)},
-     isSameAccount:async()=>await checkPowerAccount(transport.fetcher)===identity});
+     isSameAccount:async()=>await checkPowerAccount((url,options)=>transport.fetcher(url,{...options,postMutationIdentity:true}))===identity});
     await change(s=>same(s,c,epoch)?{...s,backoffs:{...s.backoffs,[channelScope(c)]:{retryAt:0,failures:0}}}:s);
     return result;
    }finally{pending.delete(epoch)}
