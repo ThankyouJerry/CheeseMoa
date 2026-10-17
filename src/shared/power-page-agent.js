@@ -9,7 +9,9 @@ export function createPagePowerAgent({isPlaying,fetcher=fetch}) {
     let mutationDispatched=false;
     try{
       if(!/^[a-f0-9]{32}$/i.test(id||''))throw new Error('INVALID_CHANNEL');
-      if(!isPlaying(id))return {build:POWER_BUILD,status:0,error:'POWER_PLAYBACK_WAIT',mutationDispatched:false,phase:'eligibility'};
+      // Account identity is freshly verified even if playback stopped after PUT.
+      // Balance and claim requests remain gated on the selected player's state.
+      if(!(request.kind==='account'&&request.postMutationIdentity===true)&&!isPlaying(id))return {build:POWER_BUILD,status:0,error:'POWER_PLAYBACK_WAIT',mutationDispatched:false,phase:'eligibility'};
       const base=`https://api.chzzk.naver.com/service/v1/channels/${id}/log-power`;
       let url,method='GET';
       if(request.kind==='account')url='https://comm-api.game.naver.com/nng_main/v1/user/getUserStatus';

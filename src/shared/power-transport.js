@@ -46,7 +46,7 @@ export function createPowerTransport({chromeApi = chrome, getChannelId,
       code: reason==='playback'&&method==='GET'?'POWER_PLAYBACK_WAIT':'POWER_HOST_REQUIRED', hostReason: reason, method, retryable, mutationDispatched: false,
     });
   }
-  async function target(channelId, method) {
+  async function target(channelId, method, identityOnly=false) {
     let tabs;
     if(targetContext)tabs=[{id:targetContext.tabId,url:HOST}];
     else try { tabs = await bounded(()=>chromeApi.tabs.query({url:'https://chzzk.naver.com/lives*'})); }
@@ -57,7 +57,9 @@ export function createPowerTransport({chromeApi = chrome, getChannelId,
       try {
         const p=await bounded(()=>chromeApi.tabs.sendMessage(tab.id,targetContext?{type:'cheesemoa-page-network',kind:'probe',channelId}:{type:'cheesemoa-power-probe',channelId},targetContext?{documentId:targetContext.documentId}:{frameId:0}));
         if (p?.build===protocol) {
-          if (p.playing===true) {tabId=tab.id;return tab.id;}
+          // Fresh identity verification must survive a pause after PUT. Only a
+          // pinned document may do this; reward requests still require playback.
+          if (p.playing===true || (identityOnly && targetContext && p.playing===false)) {tabId=tab.id;return tab.id;}
           reason = 'playback';
         } else if (typeof p?.build === 'string' && reason !== 'playback') {
           reason = 'version';
@@ -71,7 +73,9 @@ export function createPowerTransport({chromeApi = chrome, getChannelId,
       const channelId=getChannelId();
       if (!/^[a-f0-9]{32}$/i.test(channelId||'')) throw new Error('주 채널을 선택하세요.');
       const request=descriptor(url,options.method||'GET',channelId);
-      const id=await target(channelId, options.method || 'GET');
+      const identityOnly=request.kind==='account'&&!!targetContext&&options.postMutationIdentity===true;
+      if(identityOnly)request.postMutationIdentity=true;
+      const id=await target(channelId, options.method || 'GET',identityOnly);
       const result=await bounded(()=>chromeApi.tabs.sendMessage(id,{type:targetContext?'cheesemoa-page-network':'cheesemoa-power-request',...request},targetContext?{documentId:targetContext.documentId}:{frameId:0}));
       // Only explicit, proven-unsent local readiness may bypass HTTP backoff.
       if(result?.build===protocol && result.error==='POWER_PLAYBACK_WAIT' && result.status===0 &&

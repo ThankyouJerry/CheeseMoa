@@ -105,7 +105,7 @@ export function createPowerCollector({ storage, locks, fetcher = fetch, now = Da
         const previous = state.attempts.find(item => item.key === key || item.key === legacyKey);
         if (previous) { diagnostics.alreadyHandled++; if (previous.status !== "confirmed" && previous.status !== "already-claimed") blocked++; continue; }
         if (state.attempts.length >= MAX_ATTEMPTS) {
-          throw new Error("중복 방지 기록 한도에 도달하여 자동 획득을 중단했습니다.");
+          throw Object.assign(new Error("중복 방지 기록 한도에 도달하여 자동 획득을 중단했습니다."), {code: "POWER_ATTEMPT_LIMIT"});
         }
         const attempt = { key, accountId, channelId, claimId: reward.claimId, status: "pending", attemptedAt: now(), claimType: reward.claimType, build: POWER_BUILD };
         state.attempts.push(attempt);
@@ -127,12 +127,24 @@ export function createPowerCollector({ storage, locks, fetcher = fetch, now = Da
         try {
           receipt = await claimAvailableReward(channelId, reward, fetcher, now);
         } catch (error) {
+          if (error.status === 409) {
+            // A conflict is not our receipt. Keep a durable guard for this reward
+            // and check other rewards without resending the conflicting claim.
+            attempt.status = "already-claimed";
+            attempt.failedAt = now();
+            attempt.httpStatus = Number.isInteger(error.httpStatus) ? error.httpStatus : null;
+            attempt.applicationCode = error.applicationCode ?? null;
+            attempt.errorCode = error.errorCode || "REQUEST_FAILED";
+            await save(state);
+            diagnostics.alreadyHandled++;
+            continue;
+          }
           if (error.mutationDispatched === false) {
             await removeUnsent();
             throw error;
           }
           // A timeout may follow a successful server mutation; never guess or retry blindly.
-          attempt.status = error.status === 409 ? "already-claimed" : "unconfirmed";
+          attempt.status = "unconfirmed";
           attempt.failedAt = now();
           attempt.httpStatus = Number.isInteger(error.httpStatus) ? error.httpStatus : null;
           attempt.applicationCode = error.applicationCode ?? null;

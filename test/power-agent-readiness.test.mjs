@@ -30,3 +30,35 @@ test('adapter accepts only an exact proven-unsent readiness envelope',async()=>{
   await assert.rejects(t.fetcher(base+'/claims/one',{method:'PUT'}),e=>change?e.code!=='POWER_PLAYBACK_WAIT':e.code==='POWER_PLAYBACK_WAIT'&&e.method==='GET'&&e.mutationDispatched===false);
  }
 });
+const accountUrl='https://comm-api.game.naver.com/nng_main/v1/user/getUserStatus';
+test('only explicit post-mutation identity on pinned current document can read account while paused',async()=>{
+ const calls=[];
+ const agent=createPagePowerAgent({isPlaying:()=>false,fetcher:async(url,options)=>{calls.push([url,options.method]);return new Response(JSON.stringify({code:200,content:{loggedIn:true,userIdHash:'mock-account'}}));}});
+ const chromeApi={tabs:{sendMessage:async(_id,message,options)=>{assert.equal(options.documentId,'fixed-document');return agent(message);}}};
+ const transport=createPowerTransport({chromeApi,getChannelId:()=>channel,targetContext:{tabId:1,documentId:'fixed-document'},protocol:POWER_BUILD});
+ await assert.rejects(transport.fetcher(accountUrl,{method:'GET'}),e=>e.code==='POWER_PLAYBACK_WAIT');
+ assert.equal(calls.length,0);
+ const response=await transport.fetcher(accountUrl,{method:'GET',postMutationIdentity:true});
+ assert.equal(response.status,200);assert.equal((await response.json()).content.userIdHash,'mock-account');
+ assert.deepEqual(calls,[[accountUrl,'GET']]);
+ await assert.rejects(transport.fetcher(base,{method:'GET',postMutationIdentity:true}),e=>e.code==='POWER_PLAYBACK_WAIT');
+ await assert.rejects(transport.fetcher(base+'/claims/one',{method:'PUT',postMutationIdentity:true}),e=>e.code==='POWER_PLAYBACK_WAIT');
+ assert.equal(calls.length,1);
+});
+test('identity exemption does not bypass stale build, missing document, or non-pinned legacy playback',async()=>{
+ for(const failure of ['stale','missing','legacy']){
+  let network=0;
+  const chromeApi={tabs:{query:async()=>[{id:1,url:'https://chzzk.naver.com/lives#cheesemoa-multiview'}],sendMessage:async(_id,m)=>{
+   if(failure==='missing')throw Error('document gone');
+   if(m.kind==='probe'||m.type.endsWith('probe'))return {build:failure==='stale'?'old':POWER_BUILD,playing:false};
+   network++;throw Error('must not dispatch');
+  }}};
+  const t=createPowerTransport({chromeApi,getChannelId:()=>channel,...(failure==='legacy'?{}:{targetContext:{tabId:1,documentId:'original'}}),protocol:POWER_BUILD});
+  await assert.rejects(t.fetcher(accountUrl,{method:'GET',postMutationIdentity:true}));assert.equal(network,0);
+ }
+});
+test('page agent never treats post-mutation identity flag on balance or claim as playback authorization',async()=>{
+ let calls=0;const agent=createPagePowerAgent({isPlaying:()=>false,fetcher:async()=>{calls++;throw Error('unexpected')}});
+ for(const kind of ['balance','claim'])assert.ok(waiting(await agent({...claim,kind,postMutationIdentity:true})));
+ assert.equal(calls,0);
+});

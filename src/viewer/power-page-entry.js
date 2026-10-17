@@ -24,7 +24,7 @@ if(window===window.top&&location.origin==='https://chzzk.naver.com'&&
   function syncChannels(){
    const currentDirect=location.pathname.match(/^\/live\/([a-f0-9]{32})$/i)?.[1];
    if(currentDirect!==direct){void owner.stop();direct=currentDirect;restoredForChoices=true;}
-   const choices=direct?[{id:direct,name:document.title.split(' - ')[0]||'현재 방송'}]:frames().map(f=>({id:f.src.match(/\/live\/([a-f0-9]{32})$/i)?.[1],name:f.title})).filter(c=>c.id);
+   const choices=direct?[{id:direct,name:`현재 방송 (${direct.slice(0,8)}…)`}]:frames().map(f=>({id:f.src.match(/\/live\/([a-f0-9]{32})$/i)?.[1],name:f.title})).filter(c=>c.id);
    const current=select.value;
    if(enabled){if(!choices.some(c=>c.id===current))void owner.stop();return;}
    select.replaceChildren();for(const c of choices){const option=document.createElement('option');option.value=c.id;option.textContent=c.name;select.append(option)}
