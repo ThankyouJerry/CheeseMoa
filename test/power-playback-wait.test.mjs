@@ -27,3 +27,27 @@ test('local wait marker never retries a PUT or dispatched/unknown mutation',asyn
 
 test('actual server failure budget is preserved across buffering and reset only after successful cycle',async()=>{const r=createRuntimeSimulation({mode:'get-once'});try{await r.owner.start();await r.flush();const before=r.session.snapshot()['cheesemoa.power.owner.v1'].backoffs;r.playing(false);for(let i=0;i<7;i++){await r.advance();assert.equal(r.states.at(-1).enabled,true);assert.deepEqual(r.session.snapshot()['cheesemoa.power.owner.v1'].backoffs,before)}r.playing(true);await r.advance();assert.equal(r.states.at(-1).status,'checked');assert.equal(r.states.at(-1).failures,0)}finally{r.dispose()}});
 test('owner transfer during readiness wait cancels old timer and keeps exactly one owner',async()=>{const r=createRuntimeSimulation();try{r.playing(false);await r.owner.start();await r.flush();const second=r.createOwner({tabId:2,documentId:'other'});await second.start();await r.flush();assert.equal(r.timers.size,1);assert.equal(r.session.snapshot()['cheesemoa.power.owner.v1'].tabId,2);r.playing(true);await r.advance();assert.equal(r.calls.filter(c=>c.kind==='claim').length,1)}finally{r.dispose()}});
+
+
+test('playback loss after eligibility GET does not exhaust retries or strand reservation; recovery claims once',async()=>{
+ const {POWER_STORAGE_KEY}=await import('../src/shared/power-collector.js');
+ const h=createRuntimeSimulation({mode:'preflight-playback'});
+ try{
+  await h.owner.start();await h.flush();
+  for(let i=0;i<8;i++){
+   assert.equal(h.states.at(-1).status,'playback-wait');
+   assert.equal(h.states.at(-1).enabled,true);
+   assert.equal(h.calls.filter(c=>c.method==='PUT').length,0);
+   assert.equal(h.local.snapshot()[POWER_STORAGE_KEY].attempts.length,0);
+   assert.equal(h.local.snapshot()[POWER_STORAGE_KEY].receipts.length,0);
+   assert.ok(Object.values(h.session.snapshot()['cheesemoa.power.owner.v1'].backoffs||{}).every(b=>b.failures===0&&b.retryAt===0));
+   assert.equal(h.timers.size,1);
+   h.playing(true);await h.advance();
+  }
+  h.mode('ok');h.playing(true);await h.advance();
+  assert.equal(h.states.at(-1).status,'checked');
+  assert.equal(h.local.snapshot()[POWER_STORAGE_KEY].receipts.length,1);
+  await h.advance();
+  assert.equal(h.calls.filter(c=>c.method==='PUT').length,1);
+ }finally{h.dispose()}
+});

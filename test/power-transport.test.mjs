@@ -41,9 +41,9 @@ test('missing host and enumeration failure have distinct diagnoses',async()=>{
  chromeApi.tabs.query=async()=>{throw new Error('query failed')};
  await assert.rejects(t.fetcher(balance),e=>e.hostReason==='unavailable' && e.retryable);
 });
-test('PUT is not retryable and never dispatched without playback verification',async()=>{
+test('requested PUT waits locally when its probe proves playback is not ready',async()=>{
  const {t,calls}=mockTransport(()=>({build:POWER_BUILD,playing:false}));
- await assert.rejects(t.fetcher(balance+'/claims/new',{method:'PUT'}),e=>e.method==='PUT' && !e.retryable);
+ await assert.rejects(t.fetcher(balance+'/claims/new',{method:'PUT'}),e=>e.method==='GET' && e.code==='POWER_PLAYBACK_WAIT' && e.mutationDispatched===false);
  assert.equal(calls.filter(m=>m.type.endsWith('request')).length,0);
 });
 test('adapter preserves diagnostics and session recovers on scheduled GET',async()=>{

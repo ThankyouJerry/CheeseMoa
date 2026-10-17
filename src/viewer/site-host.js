@@ -42,7 +42,8 @@
     let mutationDispatched=false;
     try {
     const id=request.channelId;
-    if(!/^[a-f0-9]{32}$/i.test(id||'') || !playing(id)) throw new Error('NO_ACTIVE_PLAYER');
+    if(!/^[a-f0-9]{32}$/i.test(id||'')) throw new Error('INVALID_CHANNEL');
+    if(!playing(id)) return {build:powerBuild,status:0,error:'POWER_PLAYBACK_WAIT',mutationDispatched:false,phase:'eligibility'};
     const base=`https://api.chzzk.naver.com/service/v1/channels/${id}/log-power`;
     let url,method='GET';
     if(request.kind==='account') url='https://comm-api.game.naver.com/nng_main/v1/user/getUserStatus';
@@ -56,7 +57,7 @@
       const claim=data.content.claims.find(c=>String(c?.claimId)===request.claimId &&
         String(c.state).toUpperCase()==='COMPLIED' && String(c.saveType).toUpperCase()==='ACTIVE' && powerTypes.has(String(c.claimType).toUpperCase()));
       if(!claim) return {build:powerBuild,status:409,body:'{"code":409}',phase:'eligibility',mutationDispatched:false};
-      if(!playing(id)) throw new Error('NO_ACTIVE_PLAYER');
+      if(!playing(id)) return {build:powerBuild,status:0,error:'POWER_PLAYBACK_WAIT',mutationDispatched:false,phase:'eligibility'};
       url=`${base}/claims/${encodeURIComponent(request.claimId)}`;method='PUT';
     } else throw new Error('UNSUPPORTED_REQUEST');
     if(method==='PUT') mutationDispatched=true;
@@ -71,7 +72,7 @@
     } catch(error) {
       return {build:powerBuild,error:'POWER_TRANSPORT_FAILED',status:0,
         mutationDispatched,phase:mutationDispatched?'mutation':'eligibility',
-        timeout:error?.name==='TimeoutError',schema:error?.message==='INVALID_ELIGIBILITY'};
+        timeout:error?.name==='TimeoutError',schema:['INVALID_CHANNEL','INVALID_ELIGIBILITY','UNSUPPORTED_REQUEST'].includes(error?.message)};
     }
   }
   const powerListener=(request,sender,respond)=>{

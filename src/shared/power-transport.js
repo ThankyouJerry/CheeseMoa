@@ -39,6 +39,8 @@ export function createPowerTransport({chromeApi = chrome, getChannelId,
       playback: '선택 채널이 일시정지·버퍼링 중이거나 재생 준비가 되지 않았습니다.',
       version: '방송 창의 수령 연결 버전이 다릅니다. 확장을 다시 로드한 뒤 새 멀티뷰를 열어주세요.',
     };
+    // A failed local probe proves even a requested PUT has not been dispatched.
+    if(reason==='playback')method='GET';
     const retryable = method === 'GET' && reason !== 'version';
     return Object.assign(new Error(details[reason]), {
       code: reason==='playback'&&method==='GET'?'POWER_PLAYBACK_WAIT':'POWER_HOST_REQUIRED', hostReason: reason, method, retryable, mutationDispatched: false,
@@ -71,6 +73,11 @@ export function createPowerTransport({chromeApi = chrome, getChannelId,
       const request=descriptor(url,options.method||'GET',channelId);
       const id=await target(channelId, options.method || 'GET');
       const result=await bounded(()=>chromeApi.tabs.sendMessage(id,{type:targetContext?'cheesemoa-page-network':'cheesemoa-power-request',...request},targetContext?{documentId:targetContext.documentId}:{frameId:0}));
+      // Only explicit, proven-unsent local readiness may bypass HTTP backoff.
+      if(result?.build===protocol && result.error==='POWER_PLAYBACK_WAIT' && result.status===0 &&
+          result.mutationDispatched===false && result.phase==='eligibility'){
+        throw Object.assign(hostError('playback','GET'),{phase:'eligibility'});
+      }
       if (request.kind==='claim' && result?.build===protocol && result.mutationDispatched===false && result.phase==='eligibility') {
         const seconds=Number(result.retryAfter);
         const retryAfterMs=result.retryAfter ? (Number.isFinite(seconds) ? Math.max(0,seconds*1000) : Math.max(0,Date.parse(result.retryAfter)-Date.now())||0) : 0;
