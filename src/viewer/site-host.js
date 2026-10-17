@@ -3,6 +3,56 @@
   'use strict';
   let restoreOnShow=false;
   const isHostRoute=()=>location.origin==='https://chzzk.naver.com'&&location.pathname==='/lives'&&!location.search&&location.hash==='#cheesemoa-multiview';
+  // Adapted from Gemini desktop review (2026-10-17): read-only, allowlisted media values.
+  // Isolate optional API failures and measure buffer only in the range containing playback.
+  function mediaSnapshot(video){
+    const read=fn=>{try{return fn();}catch{return undefined;}};
+    const num=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0?v:null;
+    const int=v=>Number.isSafeInteger(v)&&v>=0?v:null;
+    const currentTime=num(read(()=>video.currentTime));
+    const paused=read(()=>video.paused),ready=int(read(()=>video.readyState)),error=int(read(()=>video.error?.code));
+    const quality=read(()=>video.getVideoPlaybackQuality?.());
+    let bufferAheadSec=null;
+    const buffered=read(()=>video.buffered),length=int(read(()=>buffered.length));
+    if(currentTime!==null&&length!==null&&length<=1000){
+      bufferAheadSec=0;
+      for(let i=0;i<length;i++){
+        const start=num(read(()=>buffered.start(i))),end=num(read(()=>buffered.end(i)));
+        if(start===null||end===null||end<start){bufferAheadSec=null;break;}
+        if(start<=currentTime&&currentTime<=end){bufferAheadSec=end-currentTime;break;}
+      }
+    }
+    return {currentTime,paused:typeof paused==='boolean'?paused:null,readyState:ready!==null&&ready<=4?ready:null,
+      mediaError:error!==null&&error>=1&&error<=4?error:null,totalFrames:int(read(()=>quality.totalVideoFrames)),
+      droppedFrames:int(read(()=>quality.droppedVideoFrames)),bufferAheadSec};
+  }
+  // These exact player messages/selectors were observed in official CHZZK DOM.
+  // Hidden error templates and text in chat, recommendations or details are not evidence.
+  function officialPlayerNotice(doc){
+    try{
+      const text=node=>(node.textContent||'').replace(/\s+/g,' ').trim();
+      const visible=node=>{
+        if(!node||node.closest('aside,#aside-chatting,[role="log"],[class*="_details_"],a[class*="_link_"]'))return false;
+        const rect=node.getBoundingClientRect();if(!(rect.width>0&&rect.height>0))return false;
+        for(let parent=node;parent;parent=parent.parentElement){
+          const style=doc.defaultView.getComputedStyle(parent);
+          if(parent.hidden||parent.getAttribute('aria-hidden')==='true'||style.display==='none'||style.visibility==='hidden'||style.visibility==='collapse'||style.opacity==='0')return false;
+        }
+        return true;
+      };
+      for(const node of doc.querySelectorAll('#live_player_layout .pzp-pc-ui-error-dialog .pzp-pc-ui-error-dialog__message')){
+        if(text(node)==='죄송합니다. 문제가 발생했습니다. 다시 시도해 주세요.'&&visible(node))return 'error';
+      }
+      for(const node of doc.querySelectorAll('main [class*="_player_"] [class*="_container_"] [class*="_description_"] > p')){
+        if(text(node)!=='사용자 보호를 위해 연령 제한이 설정된 라이브입니다.'||!visible(node))continue;
+        const container=node.closest('[class*="_container_"]');
+        const description=[...container.querySelectorAll('[class*="_description_"] > p')].find(p=>text(p)==='시청을 원하면 로그인 후 본인 인증을 완료해주세요.'&&visible(p));
+        const login=[...container.querySelectorAll('button[class*="_button_"][class*="_highlight_"]')].find(b=>text(b)==='로그인 하기'&&visible(b));
+        if(description&&login)return 'age-restricted';
+      }
+    }catch{ /* Unknown DOM or inaccessible styles remain unverified. */ }
+    return null;
+  }
   function mount() {
   if (window !== window.top || !isHostRoute()) return;
   const rootId = 'cheesemoa-site-host';
@@ -19,8 +69,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:8px;min
 button,select,a{font:inherit}button,select{min-height:28px;min-width:0;border:1px solid #617c8d;border-radius:7px;background:#19384c;color:white;padding:3px 7px;cursor:pointer}button:disabled{opacity:.5;cursor:default}.primary{background:#ffc83d;color:#172c38;border-color:#ffc83d;font-weight:800}a{color:#ffdc78}nav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.note{color:#b5cad7;font-size:11px;margin:0;flex:none}
 .help{flex:none;font-size:11px;color:#b5cad7}.help summary{cursor:pointer}.help[open]{max-height:100px;overflow:auto}.notice{padding:6px;border:1px solid #ffc83d60;border-radius:7px}
 .grid{display:grid;flex:1;min-width:0;min-height:0;grid-template-columns:repeat(var(--columns,2),minmax(0,1fr));grid-template-rows:repeat(var(--rows,2),minmax(0,1fr));gap:8px}
-article{display:grid;grid-template-rows:28px 34px minmax(0,1fr) 24px;min-width:0;min-height:0;border:1px solid #36556b;border-radius:10px;overflow:hidden;background:#102d40}article header{padding:3px 8px}article h2{font-size:13px;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}article header a{flex:none;font-size:11px}article .actions{display:flex;align-items:center;gap:4px;padding:2px 6px;overflow-x:auto;white-space:nowrap}article .actions>*{flex-shrink:0}article .actions select{width:120px;min-width:100px;flex-shrink:0}
-.screen{position:relative;min-height:0;min-width:0;overflow:hidden;background:#050e15;display:grid;place-items:center}.screen p{padding:12px;text-align:center;color:#b5cad7;font-size:12px}iframe{border:0;width:100%;height:100%;display:block}.state{padding:4px 8px;margin:0;font-size:11px;color:#a9c4d6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.empty{padding:20px}.volume{width:64px}button:focus-visible,a:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #ffc83d;outline-offset:2px}
+article{display:grid;grid-template-rows:28px 34px minmax(0,1fr) 24px;min-width:0;min-height:0;border:1px solid #36556b;border-radius:10px;overflow:hidden;background:#102d40}article header{padding:3px 8px}article h2{flex:1;min-width:0;font-size:13px;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}article header a{flex:none;font-size:11px}article header button{flex:none;min-height:22px;padding:1px 5px;font-size:11px}article .actions{display:flex;align-items:center;gap:4px;padding:2px 6px;overflow-x:auto;white-space:nowrap}article .actions>*{flex-shrink:0}article .actions select{width:120px;min-width:100px;flex-shrink:0}
+.screen{position:relative;min-height:0;min-width:0;overflow:hidden;background:#050e15;display:grid;place-items:center}.screen p{padding:12px;text-align:center;color:#b5cad7;font-size:12px}iframe{border:0;width:100%;height:100%;display:block}.state{padding:4px 8px;margin:0;font-size:11px;color:#a9c4d6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.media-diagnostic{max-width:min(480px,calc(100vw - 24px));max-height:80dvh;overflow:auto;background:#102d40;color:#f3f7fa;border:1px solid #617c8d;border-radius:10px}.media-diagnostic pre{white-space:pre-wrap;font-size:12px}.empty{padding:20px}.volume{width:64px}button:focus-visible,a:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #ffc83d;outline-offset:2px}
 @media(max-width:1100px){article{grid-template-rows:28px 64px minmax(0,1fr) 24px}article .actions{flex-wrap:wrap;align-content:center;overflow:auto}}
 @media(max-width:900px){:host([data-power-docked="true"]) .workspace{grid-template-columns:minmax(0,1fr);grid-template-rows:max-content 280px;overflow:auto}.power-dock{height:280px;max-height:280px;padding:8px}}
 @media(max-width:640px),(max-height:480px){.workspace{overflow:auto;grid-template-rows:max-content}main{height:auto;min-height:100vh;min-height:100dvh;overflow:visible}.grid{flex:none;grid-template-columns:minmax(0,1fr);grid-template-rows:none;grid-auto-rows:300px}article .actions select{min-width:100px}}`;
@@ -140,6 +190,14 @@ article{display:grid;grid-template-rows:28px 34px minmax(0,1fr) 24px;min-width:0
       const cards=new Map();
       for(let count=1;count<=slotCount;count++) {const o=document.createElement('option');o.value=String(count);o.textContent=`${count}개 보기`;layout.append(o);}
       layout.value=String(slotCount);layout.disabled=!slotCount;
+      function syncPlaybackStatus(){
+        const counts={playing:0,buffering:0,paused:0,error:0,'age-restricted':0,stalled:0,ended:0,unverified:0};
+        for(const {frame} of active.values()){
+          const state=frame.dataset.cheesemoaPlaybackState;
+          counts[Object.hasOwn(counts,state)?state:'unverified']++;
+        }
+        status.textContent=`저장된 ${channels.length}개 · 선택 ${slotCount}칸 · 열린 플레이어 ${active.size}개 · 재생 확인 ${counts.playing}개 · 버퍼링 ${counts.buffering}개 · 일시정지 ${counts.paused}개 · 오류 ${counts.error}개 · 연령 제한 ${counts['age-restricted']}개 · 진행 정체 ${counts.stalled}개 · 종료 ${counts.ended}개 · 미확인 ${counts.unverified}개`;
+      }
       function syncSlots(){
         grid.style.setProperty('--columns',slotCount===1?'1':'2');
         grid.style.setProperty('--rows',String(Math.max(1,Math.ceil(slotCount/2))));
@@ -148,14 +206,14 @@ article{display:grid;grid-template-rows:28px 34px minmax(0,1fr) 24px;min-width:0
           item.picker.value=url;item.picker.disabled=active.has(url);
           for(const o of item.picker.options)o.disabled=o.value!==url && visible.includes(o.value);
         }
-        status.textContent=`저장된 ${channels.length}개 · ${slotCount}개 보기 · 이 창 재생 ${active.size}개 · 방송은 각 칸에서 선택하고 직접 시작하세요. 저장 목록은 유지됩니다.`;
+        syncPlaybackStatus();
       }
       layout.addEventListener('change',()=>{
         const requested=Number(layout.value);
         if(!Number.isInteger(requested)||requested<1||requested>Math.min(MAX_ACTIVE,channels.length)) {layout.value=String(slotCount);return;}
         if(active.size>requested){
           layout.value=String(slotCount);
-          status.textContent=`현재 ${active.size}개 방송이 재생 중입니다. ${requested}개로 줄이려면 먼저 유지하지 않을 방송의 ‘정지’를 눌러주세요. 재생 중인 방송은 그대로 유지했습니다.`;
+          status.textContent=`현재 플레이어 ${active.size}개가 열려 있습니다. ${requested}개로 줄이려면 먼저 유지하지 않을 방송의 ‘정지’를 눌러주세요. 열린 플레이어는 그대로 유지했습니다.`;
           return;
         }
         // Keep every active frame in place. Visibility changes never move/reload it.
@@ -209,7 +267,7 @@ article{display:grid;grid-template-rows:28px 34px minmax(0,1fr) 24px;min-width:0
           let rect=null;
           if(focusVideo)try{
             const doc=frame.contentDocument;
-            if(doc&&new URL(doc.URL).href===channel.url){
+            if(doc&&new URL(doc.URL).href===channel.url&&!officialPlayerNotice(doc)){
               rect=[...doc.querySelectorAll('video')].filter(v=>v.readyState>=2).map(v=>v.getBoundingClientRect())
                 .filter(b=>[b.x,b.y,b.width,b.height].every(Number.isFinite)&&b.x>=0&&b.y>=0&&b.width>0&&b.height>0&&b.x+b.width<=1280&&b.y+b.height<=720)
                 .sort((a,b)=>b.width*b.height-a.width*a.height)[0]||null;
@@ -230,17 +288,45 @@ article{display:grid;grid-template-rows:28px 34px minmax(0,1fr) 24px;min-width:0
           if(active.size>=slotCount){state.textContent=`동시 재생 ${slotCount}개 한도입니다. 다른 칸을 정지한 뒤 시작하세요.`;return;}
           const frame=document.createElement('iframe');frame.title=label.textContent;frame.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';frame.allowFullscreen=true;
           let checks=0,blankChecks=0,retried=false,sawDocument=false;
-          frame.addEventListener('load',()=>{try{const doc=frame.contentDocument;if(!doc||doc.URL!=='about:blank')sawDocument=true;}catch{sawDocument=true;}});
+          let sampledMedia=null,sampledDocument=null,lastTime=null,lastFrames=null,stillTicks=0;
+          const resetProgress=()=>{sampledMedia=null;sampledDocument=null;lastTime=null;lastFrames=null;stillTicks=0;};
+          function playbackState(items){
+            let doc;try{doc=frame.contentDocument;if(!doc||(typeof doc.URL==='string'&&doc.URL!==channel.url)){resetProgress();return 'unverified';}}catch{resetProgress();return 'unverified';}
+            const notice=officialPlayerNotice(doc);if(notice){resetProgress();return notice;}
+            const v=items.find(v=>v.tagName==='VIDEO')||items[0];
+            if(!v){resetProgress();return 'unverified';}
+            if(Number.isInteger(v.error?.code)&&v.error.code>=1&&v.error.code<=4){resetProgress();return 'error';}
+            if(v.ended){resetProgress();return 'ended';}
+            if(v.seeking){resetProgress();return 'verifying';}
+            if(v.paused||v.readyState<2){resetProgress();return v.paused?(v.readyState>=2?'paused':'unverified'):'buffering';}
+            let frames;try{frames=v.getVideoPlaybackQuality?.().totalVideoFrames??v.webkitDecodedFrameCount;}catch{}
+            const time=Number.isFinite(v.currentTime)?v.currentTime:null;
+            frames=Number.isFinite(frames)&&frames>=0?frames:null;
+            if(time===null&&frames===null){resetProgress();return 'unverified';}
+            if(v!==sampledMedia||doc!==sampledDocument){resetProgress();sampledMedia=v;sampledDocument=doc;lastTime=time;lastFrames=frames;return 'verifying';}
+            const advanced=(time!==null&&lastTime!==null&&time>lastTime)||(frames!==null&&lastFrames!==null&&frames>lastFrames);
+            const rewound=(time!==null&&lastTime!==null&&time<lastTime)||(frames!==null&&lastFrames!==null&&frames<lastFrames);
+            lastTime=time;lastFrames=frames;
+            if(advanced){stillTicks=0;return 'playing';}
+            if(rewound){stillTicks=0;return 'verifying';}
+            return ++stillTicks>=3?'stalled':'verifying';
+          }
+          function showPlayback(kind){
+            frame.dataset.cheesemoaPlaybackState=kind;
+            const labels={playing:'재생 중 · 영상 진행 확인 · 시청 집계는 치지직 서버 기준',verifying:'재생 진행 확인 중',buffering:'버퍼링 · 재생 준비 대기',paused:'일시정지 · 재개 여부는 공식 플레이어에서 확인',error:'플레이어 오류 · 공식 방송에서 오류 내용을 확인하세요','age-restricted':'연령 제한 안내 · 공식 방송에서 로그인·본인 인증을 확인하세요',stalled:'영상 진행 미확인 · 최근 재생 진행이 관측되지 않았습니다',ended:'재생 종료',unverified:'재생 미확인 · 공식 방송에서 상태를 확인하세요'};
+            state.textContent=labels[kind];syncPlaybackStatus();
+          }
+          frame.addEventListener('load',()=>{if(active.get(channel.url)?.frame!==frame)return;resetProgress();showPlayback('unverified');try{const doc=frame.contentDocument;if(!doc||doc.URL!=='about:blank')sawDocument=true;}catch{sawDocument=true;}});
           state.textContent='플레이어 로딩 중…';
           frame.dataset.cheesemoaLoadState='loading';
           const timer=setInterval(()=>{
             if(!isHostRoute()){cleanup();return;}
             if(disposed || !frame.isConnected){clearInterval(timer);return;}
-            const items=media(frame);syncAudio(items);fitPlayer();let blank=false;
+            const items=media(frame);syncAudio(items);fitPlayer();showPlayback(playbackState(items));let blank=false;
             try{const doc=frame.contentDocument;blank=doc?.URL==='about:blank'&&doc.readyState==='complete'&&!!doc.body&&!doc.body.childNodes.length;if(doc&&doc.URL!=='about:blank')sawDocument=true;}catch{}
             if(items.length)sawDocument=true;
             blankChecks=blank&&!sawDocument&&!items.length?blankChecks+1:0;
-            if(!items.length && ++checks>=20){
+            if(!items.length&&!['error','age-restricted'].includes(frame.dataset.cheesemoaPlaybackState) && ++checks>=20){
               // Mitigation for the observed initial empty document, not a policy bypass.
               // Loaded/error/login pages and any previously loaded player are never retried.
               if(blankChecks>=20&&!sawDocument&&!retried){retried=true;checks=0;blankChecks=0;frame.dataset.cheesemoaLoadState='retrying-blank';state.textContent='빈 플레이어 문서 감지 · 한 번 다시 연결합니다.';frame.src=channel.url;return;}
@@ -248,7 +334,7 @@ article{display:grid;grid-template-rows:28px 34px minmax(0,1fr) 24px;min-width:0
             }
             hintPower(frame,channel);
             frame.dataset.cheesemoaLoadState=items.length?(mediaReady(items)?'playing':'media-pending'):(retried?'retrying-blank':'loading');
-            state.textContent=items.length?(mediaReady(items)?'재생 중 · 시청 집계는 치지직 서버 기준':items.some(v=>!v.paused)?'버퍼링 · 재생 준비 대기 · 보상 요청 대기':'일시정지 · 플레이어에서 재생 가능'):(retried?'빈 문서 재연결 중 · 추가 자동 재시도 없음':'플레이어 로딩 중…');
+            if(!items.length&&!['error','age-restricted'].includes(frame.dataset.cheesemoaPlaybackState))state.textContent=sawDocument?'재생 미확인 · 공식 방송에서 상태를 확인하세요':retried?'빈 문서 재연결 중 · 추가 자동 재시도 없음':'플레이어 로딩 중 · 재생 미확인';
           },1000);
           const observer=typeof ResizeObserver==='function'?new ResizeObserver(fitPlayer):null;observer?.observe(screen);
           const cleanupLayout=()=>observer?.disconnect();
@@ -260,6 +346,26 @@ article{display:grid;grid-template-rows:28px 34px minmax(0,1fr) 24px;min-width:0
         const volume=document.createElement('input');volume.type='range';volume.min='0';volume.max='100';volume.value='50';volume.className='volume';volume.setAttribute('aria-label',`${label.textContent} 음량`);actions.append(volume);
         volume.addEventListener('input',commandAudio);
         const view=button('전체 페이지',()=>{focusVideo=!focusVideo;view.textContent=focusVideo?'전체 페이지':'영상 맞춤';fitPlayer();},actions);view.title='같은 방송을 유지하며 영상 맞춤 또는 공식 페이지 전체를 표시합니다.';
+        button('재생 진단',()=>{
+          const frame=active.get(channel.url)?.frame;
+          let doc=null,documentAccess='not-open';
+          if(frame)try{doc=frame.contentDocument;documentAccess=doc?'accessible':'inaccessible';}catch{documentAccess='inaccessible';}
+          let documentMatches=null,video=null;
+          if(doc)try{documentMatches=doc.URL===channel.url;video=doc.querySelector('video');}catch{documentAccess='inaccessible';}
+          const allowedStates=['playing','verifying','buffering','paused','error','age-restricted','stalled','ended','unverified'];
+          const result={framePresent:!!frame,documentAccess,documentMatches,
+            playbackState:allowedStates.includes(frame?.dataset.cheesemoaPlaybackState)?frame.dataset.cheesemoaPlaybackState:'unverified',
+            videoPresent:!!video,...mediaSnapshot(video)};
+          let dialog=root.querySelector('dialog.media-diagnostic');
+          if(!dialog){
+            dialog=document.createElement('dialog');dialog.className='media-diagnostic';dialog.setAttribute('aria-label','재생 진단');
+            const note=document.createElement('p');note.textContent='클릭 시점의 읽기 전용 상태입니다. 오류 코드만으로 네트워크 원인을 판단하지 않습니다.';
+            const output=document.createElement('pre');dialog.append(note,output);
+            button('닫기',()=>{if(dialog.close)dialog.close();else dialog.removeAttribute('open');},dialog);root.append(dialog);
+          }
+          dialog.querySelector('pre').textContent=JSON.stringify(result,null,2);
+          if(!dialog.open){if(dialog.showModal)dialog.showModal();else dialog.setAttribute('open','');}
+        },head);
         button('전체화면',()=>{card.requestFullscreen?.().catch(()=>{state.textContent='전체화면을 열지 못했습니다.';});},actions);
       }
       syncSlots();

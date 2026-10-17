@@ -14,7 +14,8 @@ async function fixture({start=true}={}){
  if(!start)return {dom,root,probe:()=>{let result;listener({type:'cheesemoa-power-probe',channelId:channel},{id:'test',url:'chrome-extension://test/src/viewer/viewer.html'},r=>result=r);return result.playing}};
  [...root.querySelectorAll('button')].find(b=>b.textContent==='방송 시작').click();
  const frame=root.querySelector('iframe');
- Object.defineProperty(frame,'contentDocument',{get(){if(unreadable)throw new Error('document temporarily inaccessible');return {querySelectorAll:selector=>selector==='video,audio'?media:[]};}});
+ const doc={URL:url,querySelectorAll:selector=>selector==='video,audio'?media:[]};
+ Object.defineProperty(frame,'contentDocument',{get(){if(unreadable)throw new Error('document temporarily inaccessible');return doc;}});
  const probe=()=>{let result;listener({type:'cheesemoa-power-probe',channelId:channel},{id:'test',url:'chrome-extension://test/src/viewer/viewer.html'},r=>result=r);return result.playing};
  return {dom,root,frame,probe,step:()=>step(),setMedia:v=>media=v,setUnreadable:v=>unreadable=v};
 }
@@ -43,7 +44,9 @@ test('visible playback status must not report playing while readiness gate rejec
  const f=await fixture();try{
   f.setMedia([{paused:false,readyState:1}]);f.step();
   assert.equal(f.probe(),false);assert.match(f.root.querySelector('.state').textContent,/버퍼링|재생 준비/);
-  f.setMedia([{paused:false,readyState:4}]);f.step();
+  const progressing={paused:false,readyState:4,currentTime:10};f.setMedia([progressing]);f.step();
+  assert.equal(f.probe(),true);assert.doesNotMatch(f.root.querySelector('.state').textContent,/^재생 중/);
+  progressing.currentTime++;f.step();
   assert.equal(f.probe(),true);assert.match(f.root.querySelector('.state').textContent,/^재생 중/);
  }finally{f.dom.window.close()}
 });
