@@ -3,7 +3,7 @@
 "use strict";
 
 // src/shared/power-build.js
-const POWER_BUILD = "power-20261017.5";
+const POWER_BUILD = "power-20261017.6";
 
 
 // src/shared/log-power.js

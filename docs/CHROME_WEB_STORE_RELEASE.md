@@ -1,6 +1,6 @@
 # CheeseMoa Chrome Web Store automation
 
-This automation is restricted to `ThankyouJerry/CheeseMoa`. It does not manage other repositories or store items. It is **not activated**: the real publisher/item identifiers have not been verified, no credentials or GitHub environments have been configured, and no store requests have been made.
+This automation is restricted to `ThankyouJerry/CheeseMoa`. It does not manage other repositories or store items. It is **not activated**: the item ID is user-supplied and the publisher/item identity has not been independently verified, no credentials or GitHub environments have been configured, and no store requests have been made.
 
 ## Release boundaries
 
@@ -14,7 +14,7 @@ A job environment name alone is not a security gate. Credential-free preflight m
 
 ## Current target verification blocker
 
-Read-only navigation to `https://chrome.google.com/webstore/devconsole` was refused by the computer-use tool (`Not allowed`). No alternative credential/cookie access was attempted. The unpacked extension ID is **not** evidence of the published item ID. `config/chrome-web-store.json` therefore intentionally contains null identifiers and `verified: false`; execution remains blocked.
+Read-only navigation to `https://chrome.google.com/webstore/devconsole` was refused by the computer-use tool (`Not allowed`). No alternative credential/cookie access was attempted. The unpacked extension ID is **not** evidence of the published item ID. The user subsequently supplied item ID `opdjekfdjimddbnlamjgbpacpaldkoed` and matching public/developer URLs. Both exact URLs remained inaccessible to the tools. The config records that supplied item ID but keeps `publisherId: null` and `verified: false`; execution remains blocked. The UUID segment of a developer-dashboard URL is not treated as verified API publisher identity.
 
 Before enabling, inspect the CheeseMoa item in the real developer dashboard and confirm its title, item ID and publisher ID. Record only the non-secret identifiers in the config via a reviewed commit. `reviewerLogin` must be the user's verified GitHub login, not an invented identity. Do not populate these values from a different extension.
 
