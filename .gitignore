@@ -2,3 +2,7 @@
 node_modules/
 dist/
 *.zip
+
+# Local simulated validation output
+dev/soak-*/
+dev/power-harness-results.json

@@ -12,11 +12,11 @@ test("layout, rename, add, storage notifications and remove retain untouched ifr
   let notify;
   let data = {"cheesemoa.channels": [{url: "https://chzzk.naver.com/video/1"}]};
   let queue = Promise.resolve();
-  Object.defineProperty(globalThis, "navigator", {value: {locks: {request(_, fn) {
-    const result = queue.then(fn); queue = result.catch(() => {}); return result;
+  Object.defineProperty(globalThis, "navigator", {value: {locks: {request(_, options, fn) {
+    const result = queue.then(fn||options); queue = result.catch(() => {}); return result;
   }}}, configurable: true});
   globalThis.chrome = {storage: {
-    local: {get: async () => structuredClone(data), set: async (value) => { data = value; }},
+    local: {get: async () => structuredClone(data), set: async (value) => { data = {...data, ...value}; }},
     onChanged: {addListener: (fn) => {notify = fn;}},
   }};
   await import("../src/viewer/viewer.js");
@@ -42,6 +42,22 @@ test("layout, rename, add, storage notifications and remove retain untouched ifr
   }));
   message({type: "cheesemoa-player-ready"});
   assert.equal(request.enabled, true);
+  const mute = document.querySelector('[data-action="mute"]');
+  assert.equal(mute.disabled, true);
+  message({type: "cheesemoa-audio-state", available: true, muted: false, volume: .5}, "https://untrusted.invalid");
+  assert.equal(mute.disabled, true);
+  message({type: "cheesemoa-audio-state", available: true, muted: false, volume: .5});
+  mute.click();
+  assert.deepEqual(request, {type: "cheesemoa-set-audio", muted: true, volume: .5});
+  assert.equal(mute.textContent, "음소거 해제");
+  message({type: "cheesemoa-audio-state", available: true, muted: true, volume: .5, rawMuted: true, reason: "native"});
+  assert.equal(mute.textContent, "음소거 해제");
+  assert.equal(document.querySelectorAll('[data-action="mute"]')[1].disabled, true);
+  frame.dispatchEvent(new dom.window.Event("load"));
+  assert.equal(mute.disabled, true);
+  message({type: "cheesemoa-audio-state", available: true, muted: true, volume: .5, rawMuted: true, reason: "native"});
+  mute.click();
+  assert.equal(request.muted, false);
   message({type: "cheesemoa-player-bounds", rect: {x: 100, y: 50, width: 800, height: 450}});
   assert.equal(frame.style.transform, "scale(0.8)");
   assert.equal(frame.style.left, "-80px");
@@ -74,5 +90,20 @@ test("layout, rename, add, storage notifications and remove retain untouched ifr
   document.querySelector("#sidebar-toggle").click();
   document.dispatchEvent(new dom.window.KeyboardEvent("keydown", {key: "Escape"}));
   assert.equal(document.querySelector("#sidebar").inert, true);
+  emit([1, 2, 3, 4].map((id) => ({url: `https://chzzk.naver.com/video/${id}`})));
+  globalThis.fetch = async () => ({ok: true, json: async () => ({code: 200, content: {loggedIn: true}})});
+  const reloads = [];
+  for (const iframe of document.querySelectorAll("iframe")) {
+    Object.defineProperty(iframe, "src", {set: (url) => reloads.push(url)});
+  }
+  window.confirm = () => false;
+  document.querySelector("#login-button").click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(reloads.length, 0);
+  window.confirm = () => true;
+  document.querySelector("#login-button").click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(reloads, [1, 2, 3, 4].map(id => `https://chzzk.naver.com/video/${id}`));
+  assert.equal(document.querySelectorAll("iframe").length, 4);
   dom.window.close();
 });

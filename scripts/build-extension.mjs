@@ -5,6 +5,7 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+await import("./build-power-page.mjs");
 const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
 const version = packageJson.version;
 const distDir = join(root, "dist");

@@ -3,18 +3,50 @@
   "minimum_chrome_version": "116",
   "name": "치즈모아 - CheeseMoa",
   "short_name": "치즈모아",
-  "version": "0.1.4",
+  "version": "0.1.6",
+  "version_name": "0.1.6 power-20261017.3 page-owner source4",
   "description": "여러 CHZZK 방송을 브라우저 한곳에 모아보는 로컬 멀티뷰",
-  "permissions": ["storage"],
-  "content_scripts": [{
-    "matches": ["https://chzzk.naver.com/live/*", "https://chzzk.naver.com/video/*"],
-    "js": ["src/viewer/player-frame.js"],
-    "all_frames": true,
-    "run_at": "document_idle"
-  }],
+  "permissions": [
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chzzk.naver.com/live/*",
+        "https://chzzk.naver.com/video/*"
+      ],
+      "js": [
+        "src/viewer/player-frame.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://chzzk.naver.com/lives*"
+      ],
+      "js": [
+        "src/viewer/site-host.js"
+      ],
+      "all_frames": false,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://chzzk.naver.com/live/*",
+        "https://chzzk.naver.com/lives*"
+      ],
+      "js": [
+        "src/viewer/power-page.js"
+      ],
+      "all_frames": false,
+      "run_at": "document_idle"
+    }
+  ],
   "host_permissions": [
     "https://chzzk.naver.com/*",
-    "https://api.chzzk.naver.com/*"
+    "https://api.chzzk.naver.com/*",
+    "https://comm-api.game.naver.com/*"
   ],
   "action": {
     "default_title": "치즈모아 열기",
@@ -31,5 +63,9 @@
     "32": "assets/icons/icon-32.png",
     "48": "assets/icons/icon-48.png",
     "128": "assets/icons/icon-128.png"
+  },
+  "background": {
+    "service_worker": "src/background/power-worker.js",
+    "type": "module"
   }
 }
