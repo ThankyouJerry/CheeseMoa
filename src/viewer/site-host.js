@@ -1,6 +1,8 @@
 // Same-origin CHZZK host. Independent implementation; no security headers changed.
 (() => {
   'use strict';
+  // Adapted from Gemini's reviewed draft (2026-10-17); use the UI's multiplication sign.
+  function formatVideoDims(w,h){return Number.isInteger(w)&&Number.isInteger(h)&&w>0&&h>0?`${w}×${h}`:'';}
   let restoreOnShow=false;
   const isHostRoute=()=>location.origin==='https://chzzk.naver.com'&&location.pathname==='/lives'&&!location.search&&location.hash==='#cheesemoa-multiview';
   // Adapted from Gemini desktop review (2026-10-17): read-only, allowlisted media values.
@@ -59,7 +61,7 @@
   if (document.getElementById(rootId)) return;
   const MAX_ACTIVE = 4;
   const container = document.createElement('div'); container.id = rootId;
-  container.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#091c29';
+  container.style.cssText = 'position:fixed;inset:0;z-index:2147483646;background:#091c29;overflow-y:auto';
   const root = container.attachShadow({mode:'open'});
   const style = document.createElement('style');
   style.textContent = `.workspace{display:grid;height:100%;min-height:0;grid-template-columns:minmax(0,1fr)}.power-dock{display:none;min-width:0;min-height:0;overflow:auto;padding:8px 8px 8px 0}:host([data-power-docked="true"]) .workspace{grid-template-columns:minmax(0,1fr) 280px}:host([data-power-docked="true"]) .power-dock{display:block}
@@ -69,9 +71,9 @@ header{display:flex;align-items:center;justify-content:space-between;gap:8px;min
 button,select,a{font:inherit}button,select{min-height:28px;min-width:0;border:1px solid #617c8d;border-radius:7px;background:#19384c;color:white;padding:3px 7px;cursor:pointer}button:disabled{opacity:.5;cursor:default}.primary{background:#ffc83d;color:#172c38;border-color:#ffc83d;font-weight:800}a{color:#ffdc78}nav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.note{color:#b5cad7;font-size:11px;margin:0;flex:none}
 .help{flex:none;font-size:11px;color:#b5cad7}.help summary{cursor:pointer}.help[open]{max-height:100px;overflow:auto}.notice{padding:6px;border:1px solid #ffc83d60;border-radius:7px}
 .grid{display:grid;flex:1;min-width:0;min-height:0;grid-template-columns:repeat(var(--columns,2),minmax(0,1fr));grid-template-rows:repeat(var(--rows,2),minmax(0,1fr));gap:8px}
-article{display:grid;grid-template-rows:28px 64px minmax(0,1fr) 24px 32px;min-width:0;min-height:0;border:1px solid #36556b;border-radius:10px;overflow:hidden;background:#102d40}article header{padding:3px 8px}article h2{flex:1;min-width:0;font-size:13px;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}article header a{flex:none;font-size:11px}article header button{flex:none;min-height:22px;padding:1px 5px;font-size:11px}article .actions{display:flex;flex-wrap:wrap;align-content:center;align-items:center;gap:4px;padding:2px 6px;overflow-x:auto;white-space:nowrap}article .actions>*{flex-shrink:0}article .actions select{width:120px;min-width:100px;flex-shrink:0}
-.screen{position:relative;min-height:0;min-width:0;overflow:hidden;background:#050e15;display:grid;place-items:center}.screen p{padding:12px;text-align:center;color:#b5cad7;font-size:12px}iframe{border:0;width:100%;height:100%;display:block}.state{padding:4px 8px;margin:0;font-size:11px;color:#a9c4d6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.media-diagnostic{max-width:min(480px,calc(100vw - 24px));max-height:80dvh;overflow:auto;background:#102d40;color:#f3f7fa;border:1px solid #617c8d;border-radius:10px}.media-diagnostic pre{white-space:pre-wrap;font-size:12px}.quality-state{margin:0;padding:0 8px 3px;font-size:10px;line-height:14px;overflow:auto;overflow-wrap:anywhere;color:#b5cad7}.empty{padding:20px}.volume{width:64px}button:focus-visible,a:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #ffc83d;outline-offset:2px}
-@media(max-width:1100px){article{grid-template-rows:28px 64px minmax(0,1fr) 24px 32px}article .actions{flex-wrap:wrap;align-content:center;overflow:auto}}
+article{display:grid;grid-template-rows:28px 64px minmax(0,1fr) 24px;min-width:0;min-height:0;border:1px solid #36556b;border-radius:10px;overflow:hidden;background:#102d40}article header{padding:3px 8px}article h2{flex:1;min-width:0;font-size:13px;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}article header a{flex:none;font-size:11px}article header button{flex:none;min-height:22px;padding:1px 5px;font-size:11px}article .actions{display:flex;flex-wrap:wrap;align-content:center;align-items:center;gap:4px;padding:2px 6px;overflow-x:auto;white-space:nowrap}article .actions>*{flex-shrink:0}article .actions select{width:120px;min-width:100px;flex-shrink:0}
+.screen{position:relative;min-height:0;min-width:0;overflow:hidden;background:#050e15;display:grid;place-items:center}.screen p{padding:12px;text-align:center;color:#b5cad7;font-size:12px}iframe{border:0;width:100%;height:100%;display:block}.state{padding:4px 8px;margin:0;font-size:11px;color:#a9c4d6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.media-diagnostic{position:static;width:100%;padding:12px;overflow-wrap:anywhere;background:#102d40;color:#f3f7fa;border:1px solid #617c8d;border-radius:10px}.media-diagnostic pre{white-space:pre-wrap;font-size:12px}.empty{padding:20px}.volume{width:64px}button:focus-visible,a:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #ffc83d;outline-offset:2px}
+@media(max-width:1100px){article{grid-template-rows:28px 64px minmax(0,1fr) 24px}article .actions{flex-wrap:wrap;align-content:center;overflow:auto}}
 @media(max-width:900px){:host([data-power-docked="true"]) .workspace{grid-template-columns:minmax(0,1fr);grid-template-rows:max-content 280px;overflow:auto}.power-dock{height:280px;max-height:280px;padding:8px}}
 @media(max-width:640px),(max-height:480px){.workspace{overflow:auto;grid-template-rows:max-content}main{height:auto;min-height:100vh;min-height:100dvh;overflow:visible}.grid{flex:none;grid-template-columns:minmax(0,1fr);grid-template-rows:none;grid-auto-rows:300px}article .actions select{min-width:100px}}`;
   root.append(style);
@@ -89,8 +91,7 @@ article{display:grid;grid-template-rows:28px 64px minmax(0,1fr) 24px 32px;min-wi
   const notice = document.createElement('p'); notice.className='note notice';notice.textContent=`최대 ${MAX_ACTIVE}개를 이 화면에서 시청합니다. 방송 시작 전에는 플레이어를 불러오지 않습니다. 자동수령 패널에서 수집할 방송과 ON/OFF 상태를 확인하세요. 새 설정은 기본 ON이며 저장한 OFF와 현재 실행의 OFF는 유지합니다. 관리 창을 열어둘 필요가 없습니다. 실제 ON·최근 조회·확정 수령은 자동수령 패널에서 확인하세요.`;const help=document.createElement('details');help.className='help';const summary=document.createElement('summary');summary.textContent='시청·자동수령 안내';help.append(summary,notice);main.append(help);
   const status=document.createElement('p');status.className='note';status.setAttribute('role','status');main.append(status);
   const grid=document.createElement('section');grid.className='grid';grid.setAttribute('aria-label','멀티뷰 방송 목록');main.append(grid);
-  const allQuality=document.createElement('select');allQuality.setAttribute('aria-label','전체 화질');allQuality.disabled=true;nav.append(allQuality);
-  const allQualityInfo=document.createElement('span');allQualityInfo.className='note';allQualityInfo.textContent='화질은 공식 메뉴에서 불러옵니다.';nav.append(allQualityInfo);
+
   const active=new Map(); let disposed=false;
   // Requests arrive only from this extension's management document, never from
   // web postMessage. No arbitrary URL, credentials, header or script is accepted.
@@ -189,24 +190,7 @@ article{display:grid;grid-template-rows:28px 64px minmax(0,1fr) 24px 32px;min-wi
       });
       let slotCount=Math.min(MAX_ACTIVE,channels.length);
       let visible=channels.slice(0,slotCount).map(c=>c.url);
-      const cards=new Map(),qualityControllers=new Map();
-      function syncAllQuality(){
-        const controllers=[...active.keys()].map(url=>qualityControllers.get(url)).filter(Boolean);
-        let common=controllers.length?[...controllers[0].options()]:[];
-        for(const controller of controllers.slice(1))common=common.filter(value=>controller.options().includes(value));
-        const signature=JSON.stringify(common);
-        if(allQuality.dataset.options!==signature){
-          allQuality.dataset.options=signature;allQuality.replaceChildren(new Option('전체 화질', ''));
-          for(const value of common)allQuality.append(new Option(value,value));
-        }
-        allQuality.disabled=!common.length;
-      }
-      button('화질 불러오기',()=>{for(const url of active.keys())qualityControllers.get(url)?.request();allQualityInfo.textContent='열린 플레이어의 공식 화질 메뉴 확인 중';},nav);
-      allQuality.addEventListener('change',()=>{
-        const value=allQuality.value;if(!value)return;
-        let requested=0;for(const url of active.keys())if(qualityControllers.get(url)?.request(value))requested++;
-        allQualityInfo.textContent=`${requested}개 플레이어에 ${value} 선택 요청 · 실제 영상 크기는 각 칸에서 확인`;
-      });
+      const cards=new Map();
       for(let count=1;count<=slotCount;count++) {const o=document.createElement('option');o.value=String(count);o.textContent=`${count}개 보기`;layout.append(o);}
       layout.value=String(slotCount);layout.disabled=!slotCount;
       function syncPlaybackStatus(){
@@ -225,7 +209,7 @@ article{display:grid;grid-template-rows:28px 64px minmax(0,1fr) 24px 32px;min-wi
           item.picker.value=url;item.picker.disabled=active.has(url);
           for(const o of item.picker.options)o.disabled=o.value!==url && visible.includes(o.value);
         }
-        syncPlaybackStatus();syncAllQuality();
+        syncPlaybackStatus();
       }
       layout.addEventListener('change',()=>{
         const requested=Number(layout.value);
@@ -259,24 +243,11 @@ article{display:grid;grid-template-rows:28px 64px minmax(0,1fr) 24px 32px;min-wi
         const screen=document.createElement('div');screen.className='screen';card.append(screen);
         const placeholder=document.createElement('p');placeholder.textContent='방송 시작을 누르면 이 칸에서 재생합니다.\n다른 방송 시청은 통나무 시청 집계 대상에 영향을 줄 수 있습니다.';screen.append(placeholder);
         const state=document.createElement('p');state.className='state';state.textContent='방송 시작 전 · 수집 상태는 자동수령 패널에서 확인';card.append(state);
-        const qualityLine=document.createElement('p');qualityLine.className='quality-state';qualityLine.textContent='요청 없음 · 최근 메뉴 미확인 · 영상 미확인';card.append(qualityLine);
-        const qualitySelect=document.createElement('select');qualitySelect.setAttribute('aria-label',`${label.textContent} 채널 화질`);qualitySelect.disabled=true;qualitySelect.append(new Option('화질 불러오기',''));actions.append(qualitySelect);
-        let qualityOptions=[],qualityPending=null,qualityRequested='',qualitySelected='',qualityStatus='미확인',qualityFailure='';
-        let qualityDocument=null,qualityFrame=null;
+
+        let qualityPending=null,qualityDiagnostic={status:'idle'};
         function qualityDocumentNow(){
           const frame=active.get(channel.url)?.frame;if(!frame)return null;
           try{const doc=frame.contentDocument;return doc?.URL===channel.url?{frame,doc}:null;}catch{return null;}
-        }
-        function qualitySummary(){
-          const current=qualityDocumentNow();let dimensions='미확인';
-          try{const video=current?.doc.querySelector('video');if(Number.isSafeInteger(video?.videoWidth)&&video.videoWidth>0&&Number.isSafeInteger(video.videoHeight)&&video.videoHeight>0)dimensions=`${video.videoWidth}×${video.videoHeight}`;}catch{}
-          const failure=qualityFailure?` · ${qualityFailure}`:'';
-          const result=`화질 요청 ${qualityRequested||'없음'} (${qualityStatus}) · 공식 선택 ${qualitySelected||'미확인'} · 영상 ${dimensions}${failure}`;
-          qualitySelect.title=result;qualityLine.textContent=qualityFailure?`${qualityStatus} · ${qualityFailure}`:`요청 ${qualityRequested||'없음'} · 최근 메뉴 ${qualitySelected||'미확인'} · 영상 ${dimensions}`;qualityLine.title=result;return result;
-        }
-        function qualityItems(doc){
-          return [...doc.querySelectorAll('#live_player_layout .pzp li.pzp-ui-setting-quality-item[role="menuitem"]')].map(item=>({item,label:(item.querySelector('.pzp-ui-setting-quality-item__prefix')?.textContent||'').trim()}))
-            .filter(({item,label})=>/^\d{3,4}p(?:\(원본\))?$/.test(label)&&qualityClickable(item));
         }
         function qualityRejection(item,allowSettingsAutohide=false){
           const rejected=(reason,node=item)=>({reason,node:node?`${node.tagName}.${String(node.className||'').replace(/[^a-zA-Z0-9_ -]/g,'').slice(0,96).trim().replace(/ +/g,'.')}`:'none'});
@@ -297,70 +268,26 @@ article{display:grid;grid-template-rows:28px 64px minmax(0,1fr) 24px 32px;min-wi
           return null;
         }
         function qualityClickable(item,allowSettingsAutohide=false){return !qualityRejection(item,allowSettingsAutohide);}
-        function activateQualityOption(item,pending){
-          const owns=()=>{
-            const current=qualityDocumentNow();
-            return !disposed&&isHostRoute()&&qualityPending===pending&&current?.frame===pending.frame&&current?.doc===pending.doc&&item.ownerDocument===pending.doc&&qualityClickable(item);
-          };
-          // Gemini review recommended a single normal event sequence. Events remain
-          // synthetic; never detach/clone official nodes or fabricate trusted input.
-          if(!owns())return;
-          const view=pending.doc.defaultView,rect=item.getBoundingClientRect();
-          const clientX=rect.left+rect.width/2,clientY=rect.top+rect.height/2;
-          if(!Number.isFinite(clientX)||!Number.isFinite(clientY))return;
-          const base={bubbles:true,cancelable:true,composed:true,view,button:0,clientX,clientY};
-          for(const type of ['pointerdown','mousedown','pointerup','mouseup','click']){
-            if(!owns())return;
-            const down=type==='pointerdown'||type==='mousedown';
-            const EventType=type.startsWith('pointer')?(view.PointerEvent||view.MouseEvent):view.MouseEvent;
-            const event=new EventType(type,{...base,buttons:down?1:0,pointerId:1,pointerType:'mouse',isPrimary:true});
-            if(!item.dispatchEvent(event))return;
-          }
-        }
         function updateQuality(){
-          if(qualityPending&&++qualityPending.steps>10){qualityFailure=qualityPending.diagnostic||`phase=${qualityPending.phase} settings=unknown gate=unavailable`;qualityPending=null;qualityStatus='확인 시간 초과';qualitySummary();}
+          const pending=qualityPending;if(!pending)return;
           const current=qualityDocumentNow();
-          if(qualityPending&&(active.get(channel.url)?.frame!==qualityPending.frame||(qualityPending.doc&&current?.doc!==qualityPending.doc))){qualityPending=null;qualityStatus='플레이어 변경으로 취소';}
-          if(!current){qualityOptions=[];qualitySelected='';qualitySelect.disabled=true;syncAllQuality();return;}
-          if(qualityDocument!==current.doc||qualityFrame!==current.frame){qualityOptions=[];qualitySelected='';qualityDocument=current.doc;qualityFrame=current.frame;}
-          const items=qualityItems(current.doc),labels=items.map(entry=>entry.label);
-          if(items.some(({item})=>qualityClickable(item)))qualitySelected=items.find(({item})=>item.classList.contains('pzp-ui-setting-pane-item--checked')&&qualityClickable(item))?.label||'';
-          if(items.length&&JSON.stringify(labels)!==JSON.stringify(qualityOptions)){
-            qualityOptions=labels;qualitySelect.replaceChildren(new Option('채널 화질',''));
-            for(const value of labels)qualitySelect.append(new Option(value,value));syncAllQuality();
-          }
-          qualitySelect.disabled=!qualityOptions.length;
-          qualitySelect.value=qualityRequested&&qualityOptions.includes(qualityRequested)?qualityRequested:qualitySelected;
-          const pending=qualityPending;if(!pending){qualitySummary();return;}
-          pending.doc??=current.doc;
-          const diagnosticSettings=current.doc.querySelector('#live_player_layout .pzp button.pzp-setting-button[aria-label="설정"]');
-          const diagnosticCandidates=[...current.doc.querySelectorAll('#live_player_layout .pzp .pzp-settings .pzp-setting-intro-quality[role="menuitem"],#live_player_layout .pzp li.pzp-ui-setting-quality-item[role="menuitem"]')];
-          const rejection=qualityRejection(diagnosticSettings,true)||diagnosticCandidates.map(node=>qualityRejection(node)).find(Boolean);
-          pending.diagnostic=`phase=${pending.phase} settings=${diagnosticSettings?'present':'missing'} gate=${rejection?`${rejection.reason} ${rejection.node}`:'none'}`;
-          if(!pending.value&&items.length){qualityPending=null;qualityStatus='메뉴 확인';qualitySummary();return;}
-          if(pending.value&&items.some(entry=>entry.label===pending.value&&entry.item.classList.contains('pzp-ui-setting-pane-item--checked')&&qualityClickable(entry.item))){qualityPending=null;qualityStatus='공식 선택 확인';qualitySummary();return;}
-          const option=items.find(entry=>entry.label===pending.value);
-          if(!pending.clicked&&option&&qualityClickable(option.item)){pending.clicked=true;pending.phase=0;qualityStatus='선택 요청 중';activateQualityOption(option.item,pending);return;}
-          if(pending.clicked&&items.some(entry=>qualityClickable(entry.item)))return;
-          if(pending.phase<2){
-            // Observed official settings DOM: a DIV menuitem, not an arbitrary text button.
-            const resolution=[...current.doc.querySelectorAll('#live_player_layout .pzp .pzp-settings .pzp-setting-intro-quality[role="menuitem"]')].find(node=>qualityClickable(node));
-            if(resolution){pending.phase=2;resolution.click();}
-            else if(pending.phase===0){
-              const settings=current.doc.querySelector('#live_player_layout .pzp button.pzp-setting-button[aria-label="설정"]');
-              if(qualityClickable(settings,true)){pending.phase=1;if(settings.getAttribute('aria-expanded')!=='true')settings.click();}
-            }
-          }
+          if(disposed||!isHostRoute()||current?.frame!==pending.frame||current?.doc!==pending.doc){qualityPending=null;qualityDiagnostic={status:'cancelled'};return;}
+          if(++pending.steps>10){qualityPending=null;qualityDiagnostic={...qualityDiagnostic,status:'timeout'};return;}
+          const settings=current.doc.querySelector('#live_player_layout .pzp button.pzp-setting-button[aria-label="설정"]');
+          const resolution=[...current.doc.querySelectorAll('#live_player_layout .pzp .pzp-settings .pzp-setting-intro-quality[role="menuitem"]')].find(node=>qualityClickable(node));
+          const options=[...current.doc.querySelectorAll('#live_player_layout .pzp li.pzp-ui-setting-quality-item[role="menuitem"]')].filter(node=>qualityClickable(node));
+          const rejection=qualityRejection(settings,true);
+          qualityDiagnostic={status:'opening',phase:pending.phase,settingsPresent:!!settings,gate:rejection?.reason||'none',node:rejection?.node||'none'};
+          if(options.length){qualityPending=null;qualityDiagnostic={status:'menu-visible'};return;}
+          if(pending.phase<2&&resolution){pending.phase=2;resolution.click();return;}
+          if(pending.phase===0&&qualityClickable(settings,true)){pending.phase=1;if(settings.getAttribute('aria-expanded')!=='true')settings.click();}
         }
-        function requestQuality(value=''){
-          const frame=active.get(channel.url)?.frame;if(!frame||!isHostRoute())return false;
-          if(value&&!qualityOptions.includes(value))return false;
-          if(qualityPending?.value===value)return false;
-          qualityFailure='';qualityRequested=value;qualityStatus=value?'선택 요청 중':'메뉴 확인 중';
-          qualityPending={frame,doc:qualityDocumentNow()?.doc||null,value,steps:0,phase:0,clicked:false};updateQuality();return true;
-        }
-        qualitySelect.addEventListener('change',()=>requestQuality(qualitySelect.value));
-        qualityControllers.set(channel.url,{options:()=>qualityOptions,request:requestQuality});
+        const qualityMenu=button('화질 메뉴',()=>{
+          const current=qualityDocumentNow();if(!current||disposed||!isHostRoute()||qualityPending)return;
+          focusVideo=false;view.textContent='영상 맞춤';fitPlayer();
+          qualityPending={...current,steps:0,phase:0};qualityDiagnostic={status:'opening'};updateQuality();
+        },actions);
+        qualityMenu.title='공식 메뉴를 엽니다. 원하는 화질은 방송 화면에서 직접 선택하세요.';
         let muted=true,trackedMedia=[],focusVideo=true;
         function updateAudioLabel(){mute.textContent=muted?'음소거 ON':'음소거 OFF';}
         function applyAudio(items){for(const v of items){if(v.muted!==muted)v.muted=muted;const level=Number(volume.value)/100;if(v.volume!==level)v.volume=level;}}
@@ -435,7 +362,10 @@ article{display:grid;grid-template-rows:28px 64px minmax(0,1fr) 24px 32px;min-wi
           function showPlayback(kind){
             frame.dataset.cheesemoaPlaybackState=kind;
             const labels={playing:'재생 중 · 영상 진행 확인 · 시청 집계는 치지직 서버 기준',verifying:'재생 진행 확인 중',buffering:'버퍼링 · 재생 준비 대기',paused:'일시정지 · 재개 여부는 공식 플레이어에서 확인',error:'플레이어 오류 · 공식 방송에서 오류 내용을 확인하세요','age-restricted':'연령 제한 안내 · 공식 방송에서 로그인·본인 인증을 확인하세요',stalled:'영상 진행 미확인 · 최근 재생 진행이 관측되지 않았습니다',ended:'재생 종료',unverified:'재생 미확인 · 공식 방송에서 상태를 확인하세요'};
-            state.textContent=labels[kind];state.title=state.textContent;qualitySummary();syncPlaybackStatus();
+            const snapshot=mediaSnapshot(media(frame)[0]);
+            const size=formatVideoDims(snapshot.videoWidth,snapshot.videoHeight);
+            const dimensions=size?` · ${size}`:'';
+            state.textContent=labels[kind]+dimensions;state.title=state.textContent;syncPlaybackStatus();
           }
           frame.addEventListener('load',()=>{if(active.get(channel.url)?.frame!==frame)return;resetProgress();showPlayback('unverified');try{const doc=frame.contentDocument;if(!doc||doc.URL!=='about:blank')sawDocument=true;}catch{sawDocument=true;}});
           state.textContent='플레이어 로딩 중…';
@@ -458,7 +388,7 @@ article{display:grid;grid-template-rows:28px 64px minmax(0,1fr) 24px 32px;min-wi
             if(!items.length&&!['error','age-restricted'].includes(frame.dataset.cheesemoaPlaybackState))state.textContent=sawDocument?'재생 미확인 · 공식 방송에서 상태를 확인하세요':retried?'빈 문서 재연결 중 · 추가 자동 재시도 없음':'플레이어 로딩 중 · 재생 미확인';
           },1000);
           const observer=typeof ResizeObserver==='function'?new ResizeObserver(fitPlayer):null;observer?.observe(screen);
-          const cleanupLayout=()=>{observer?.disconnect();qualityPending=null;qualityOptions=[];qualitySelected='';qualitySelect.disabled=true;};
+          const cleanupLayout=()=>{observer?.disconnect();qualityPending=null;qualityDiagnostic={status:'idle'};};
           active.set(channel.url,{frame,timer,start,stop:stopButton,state,cleanupAudio,cleanupLayout});start.disabled=true;start.hidden=true;stopButton.disabled=false;screen.replaceChildren(frame);fitPlayer();frame.src=channel.url;
           syncSlots();
         },actions);start.className='primary';
@@ -476,16 +406,16 @@ article{display:grid;grid-template-rows:28px 64px minmax(0,1fr) 24px 32px;min-wi
           const allowedStates=['playing','verifying','buffering','paused','error','age-restricted','stalled','ended','unverified'];
           const result={framePresent:!!frame,documentAccess,documentMatches,
             playbackState:allowedStates.includes(frame?.dataset.cheesemoaPlaybackState)?frame.dataset.cheesemoaPlaybackState:'unverified',
-            videoPresent:!!video,...mediaSnapshot(video)};
-          let dialog=root.querySelector('dialog.media-diagnostic');
-          if(!dialog){
-            dialog=document.createElement('dialog');dialog.className='media-diagnostic';dialog.setAttribute('aria-label','재생 진단');
-            const note=document.createElement('p');note.textContent='클릭 시점의 읽기 전용 상태입니다. 오류 코드만으로 네트워크 원인을 판단하지 않습니다.';
-            const output=document.createElement('pre');dialog.append(note,output);
-            button('닫기',()=>{if(dialog.close)dialog.close();else dialog.removeAttribute('open');},dialog);root.append(dialog);
+            videoPresent:!!video,...mediaSnapshot(video),qualityMenu:{...qualityDiagnostic}};
+          let panel=root.querySelector('section.media-diagnostic');
+          if(!panel){
+            panel=document.createElement('section');panel.className='media-diagnostic';panel.setAttribute('aria-label','재생 진단');
+            const heading=document.createElement('h2');heading.textContent='재생 진단';
+            const note=document.createElement('p');note.textContent='요청한 시점의 상태입니다. 오류 코드만으로 네트워크 원인을 판단하지 않습니다.';
+            const output=document.createElement('pre');panel.append(heading,note,output);
+            button('닫기',()=>{panel.hidden=true;},panel);root.append(panel);
           }
-          dialog.querySelector('pre').textContent=JSON.stringify(result,null,2);
-          if(!dialog.open){if(dialog.showModal)dialog.showModal();else dialog.setAttribute('open','');}
+          panel.querySelector('pre').textContent=JSON.stringify(result,null,2);panel.hidden=false;
         },head);
         button('전체화면',()=>{card.requestFullscreen?.().catch(()=>{state.textContent='전체화면을 열지 못했습니다.';});},actions);
       }

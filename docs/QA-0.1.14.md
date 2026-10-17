@@ -1,48 +1,39 @@
-# 0.1.14 화질 제어 검증
+# 0.1.14 quality controls: verification and limitations
 
-전체/개별 화질 선택은 공식 플레이어 내부 메뉴에 실제 존재하는 옵션만 사용합니다. 전체 목록은 열린 플레이어들의 공통 옵션입니다. 요청값, 최근 공식 메뉴 선택값, 디코딩 영상 크기는 서로 다른 관측값입니다. 캐시된 선택값만으로 새 요청을 성공 처리하지 않습니다.
+## Final status
 
-## 재현
+**External quality changes failed in the real local browser.** Both attached LI.click and the final standard pointer/mouse sequence timed out while all four videos remained 640x360. Normal native clicks on the same official1080p options changed all four videos to1920x1080. This source update is experimental; it is not a completed quality-control feature or a store release.
 
-전체 소스를 받은 뒤 `npm ci`, `npm test`, `npm run validate`, `npm run build`를 실행합니다. 설치용 ZIP은 개발 스냅샷이 아니며 package.json/tests/scripts가 포함되지 않습니다. 전체 개발 소스는 해당 GitHub 커밋의 source ZIP을 사용하세요.
+Official menu discovery passed after allowing opacity0 for the exact official settings entry (including the button itself). Other visibility checks remain intact. Quality options must be visible. The implementation pins the active frame/document, uses one bounded attempt, checks ownership before every event, and stops on cancellation. It does not clone/detach official nodes, spoof trusted events, call private player APIs, or reload on a quality request.
 
-- 전체 테스트 386/386 통과, validate/build 통과.
-- 화질 회귀 18개: 늦은 메뉴 생성, 중복/교체 요청, 타임아웃, 프레임 교체, 캐시 오판, 숨겨진 옵션, 플레이어 밖 버튼, 설정 자동 숨김을 검증합니다.
-- 독립 리뷰에서 캐시 조기 성공, 숨겨진 메뉴, 문서 전체 버튼 탐색을 지적해 수정했습니다.
-- Gemini 실제 앱 검토: 요청 교체 상태 초기화, 비동기 메뉴 중복 토글, 설정 버튼 자동 숨김과 숨겨진 메뉴 옵션 구분을 확인했습니다. Gemini는 코드 실행을 수행하지 않았습니다. 자동 숨김 예외는 정확한 공식 설정 버튼 자체 및 상위 opacity에만 적용했습니다.
-- 자동수령/권한/네트워크 정책은 이번 변경 범위가 아닙니다.
+Requested quality, recent official menu selection, and decoded video dimensions are separate observations. Menu confirmation is not proof of decoded resolution. Timeout means confirmation was not obtained. The selector currently prioritizes the last request; the separate observations must be used to assess the result.
 
-## 실제 방송 검증 경계
+## Reproduction and code verification
 
-기존 0.1.13 기본 로그인 Chrome에서 POPOPOPO/마시로/로즈/마요 네 영상의 currentTime 및 decoded frames 증가, 정상 재생, 공식 메뉴를 이용한 각 1920×1080 크기를 관측했습니다. 이 결과는 새 화질 버튼의 성공 증거가 아닙니다. 자동수령은 OFF였으며 새로운 실제 수령이나 3시간 안정성을 입증하지 않습니다.
+Use the complete Git source, not the extension installation ZIP. The source includes package.json, package-lock.json, test/, and scripts/build-power-page.mjs.
 
-0.1.14 실제 버튼 적용 및 Grok 독립 검토 결과는 별도 실행 기록으로 추가합니다. 미검증 사항을 통과로 간주하지 않습니다.
+Run npm ci, npm test, npm run validate, and npm run build.
 
-## 실제 단일 방송 중간 결과 (2026-10-17)
+- Local canonical-source snapshot:386/386 tests passed; validate and build passed.
+- Quality regressions:18/18 passed, including sequence order/coordinates/realm, stale frame/document, cancellation, hidden options, and no retry/network/storage/navigation side effects.
+- Independent Codex review:18/18 directly executed and no additional blocking code defect found. This did not prove live quality changes.
+- GitHub main a3439fc72067b6010a623ef7cdde194832bbce75: CI passed. Source tree789b4d537b9b37c40569009e5a984b78b28ece9e matches reviewed branch538e46632ee458b7938adc0feaaf1be92842b0dc.
+- Grok Bot actually cloned/checked out both commits, confirmed version0.1.14 and the required source files, then independently ran all four commands successfully. Its log records386/386 tests,0 failures, manifest and32 assets validated.
 
-로그인된 기본 Chrome의 설치된 0.1.14로 검사했습니다. 자동수령 OFF.
-- 최초 메뉴 조회는 phase=0, settings=present, gate=opacity BUTTON.pzp-setting-button에서 만료했습니다. 정확한 설정 버튼 자체의 opacity 예외 후 외부 메뉴 조회가 공식 해상도 목록까지 열고 360p 선택을 읽었습니다.
-- 외부 선택으로 1080p를 요청했지만 640×360이 유지되어 시간 초과했습니다. 메뉴 조회 통과와 화질 변경 실패는 별개입니다.
-- 같은 공식 1080p 항목을 정상 네이티브 클릭했을 때 실제 영상 크기가 1920×1080으로 바뀌었습니다. 외부 제어의 성공 증거가 아닙니다.
-- 공개 Chzzk-Platter audioMixer.js 5692–5760은 attached LI.click 무반응 및 clone/detach/click/restore 방식을 기록합니다. 해당 방식은 현재 적용하지 않았습니다.
-- 최신 독립 회귀 16/16, 전체 384/384, validate/build 통과. 실제 외부 화질 변경은 여전히 실패입니다.
+## External review and authorship
 
-## 사용자 요청에 따른 검증 중단
+Gemini provided actual review and draft snippets/pseudocode. Its suggestions informed asynchronous menu phase guards, fresh checked-state confirmation, the narrow settings opacity exception, and one standard pointer/mouse sequence. Codex wrote and integrated qualityDocumentNow, qualityRejection, updateQuality, requestQuality, activateQualityOption, and test/site-quality.test.mjs. Gemini explicitly confirmed this attribution; it did not execute tests or author the final integrated functions.
 
-기존 Chrome 확장 관리 탭만 남기고 다른 6개 탭을 닫았습니다. 이후 방송 탭을 다시 열지 않았습니다. 최종 수정은 DOM 교체 없이 pointerdown/mousedown/pointerup/mouseup/click을 한 번 전달하고, 각 이벤트마다 소유권·가시성을 다시 검증합니다. 이 최종 시퀀스의 실제 방송 화질 전환은 **미검증**입니다. 앞선 LI.click 실패를 해결했다고 주장하지 않습니다.
+Grok reviewed the final source and provided logs. Its review raised cancellation semantics, exact event target, detail/focus/hover differences, isolated-world behavior, and trusted-input gating as hypotheses. None is established as the actual cause. It also identified contradictory historical QA wording, corrected in this document. Its initial coverage assessment used test names rather than every test body, so that claim is limited.
 
-Gemini 검토는 메뉴 단계/중복 토글, 새 선택 확인, 설정 버튼 자동 숨김, 일반 이벤트 순서 제안에 반영했습니다. 구체적 구현 및 테스트는 Codex가 작성했으며, Gemini가 테스트를 실행하거나 최종 함수를 작성했다고 보고하지 않습니다. 공개 비교 구현의 clone/detach 방식은 채택하지 않았습니다.
+The public MIT Chzzk-Platter comparator describes clone/replace/detached-click/restore for quality changes in src/audioMixer.js5692-5760. We did not copy that mechanism. Existing licensing and comparison attribution are preserved in CHZZK_PLATTER_COMPARISON.md.
 
-## 외부 검토·기여 확인
+## Actual playback boundaries
 
-Gemini 앱에 저자 확인을 요청했고, 검토/의사코드와 Codex 최종 구현을 구분한 설명이 정확하다는 답을 받았습니다. Gemini가 제시한 초안에는 visibility/persist 의사코드, 별도의 레이아웃 회귀 예시, snapshot(video) 진단 예시가 있으나 이번 qualityDocumentNow/qualityRejection/updateQuality/requestQuality/activateQualityOption 및 회귀 테스트를 Gemini가 직접 작성·통합한 것으로 표시하지 않습니다.
+Previous0.1.13 measurements showed four-channel currentTime and decoded-frame progression over approximately57 seconds, and native menu1080p selections. Those observations do not prove the new external controls work.
 
-Grok Bot의 기존 [개발] 프로그램 리뷰 대화에서 실제 기술 검토를 받았습니다. 중심 좌표, 대상 문서의 이벤트 생성자, pointer 속성, 전파 설정, 중도 메뉴 제거, 동일 프레임/문서 유지, 중복 요청 금지, 관측과 성공 판정 분리를 점검하도록 제안했습니다. 신뢰 이벤트 요구 여부는 가설이며, 증거 없이 실패 원인으로 확정하지 않았습니다. 최종 커밋 수신·실행 결과는 후속 확인 대상입니다.
+On2026-10-17 the user first requested closing all Chrome tabs except extensions management; six other tabs were closed. The user subsequently authorized another30-minute playback test, so only one necessary test tab was reopened.
 
-## 재허용된 실제 검증: 최종 시퀀스 실패
+Mashiro's official page displayed the next-live message, confirming the broadcast had ended. The user-authorized replacement was Arahashi Tabi(a6c4ddb09cdb160478996007bff35296). The measured set is POPOPOPO, Tabi, Blair Rose, and Midomido Mayo. Auto-claim remains OFF.
 
-사용자가 30분 추가 재생 검증을 허용해 필요한 모아보기 탭 1개만 다시 열었습니다. 마시로는 공식 화면에 다음 라이브 안내가 표시되어 종료를 확인했고, 사용자가 허용한 아라하시 타비(a6c4ddb09cdb160478996007bff35296)로 대체했습니다.
-
-최종 표준 이벤트 시퀀스로 전체1080p를 1회 요청했으나 네 채널 모두 시간 초과/실제640×360 유지로 **실패**했습니다. 공식 네이티브1080p 항목을 각각 클릭한 뒤에는 모두1920×1080, readyState4, paused=false, mediaError=null로 확인됐습니다. 이 결과를 외부 버튼의 성공으로 해석하지 않습니다.
-
-브라우저 디버깅 연결 중 네 프레임이 빈 화면으로 남았고, 연결 해제 후 네 페이지가 로드됐습니다. 단일 관측상 연관성만 확인했으며 브라우저 내부 원인을 확정하지 않았습니다. 안정성 측정에는 이 준비 시간을 포함하지 않습니다. 30분 관측은 별도 기록 예정입니다.
+During setup, frames remained blank while browser debugging was attached and loaded after detachment. This is an observed association, not a proven browser-internal cause. Setup and quality changes are excluded from the stability window. The30-minute window started2026-10-17T15:09:30Z but was interrupted: Rose was observed stalled with readyState1 and zero buffer around15:25, then recovered without reload. It is not a passed30-minute run. The user requested a renewed20-minute window15:29–15:49UTC; see QA-0.1.15.md for its separate evidence. No new reward receipt or three-hour stability claim is made.
