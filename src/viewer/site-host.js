@@ -2,9 +2,9 @@
 (() => {
   'use strict';
   let restoreOnShow=false;
+  const isHostRoute=()=>location.origin==='https://chzzk.naver.com'&&location.pathname==='/lives'&&!location.search&&location.hash==='#cheesemoa-multiview';
   function mount() {
-  if (window !== window.top || location.origin !== 'https://chzzk.naver.com' ||
-      location.pathname !== '/lives' || location.hash !== '#cheesemoa-multiview') return;
+  if (window !== window.top || !isHostRoute()) return;
   const rootId = 'cheesemoa-site-host';
   if (document.getElementById(rootId)) return;
   const MAX_ACTIVE = 4;
@@ -33,7 +33,7 @@
   const powerTypes=new Set(['WATCH_1_HOUR','WATCH_5_MIN','FOLLOW','DONATE','DONATE_MONTHLY','SUBSCRIPTION_GIFT','SUBSCRIPTION_GIFT_MONTHLY']);
   const liveUrl=id=>`https://chzzk.naver.com/live/${id}`;
   const mediaReady=items=>items.some(v=>!v.paused && v.readyState>=2);
-  const playing=id=>!disposed && active.has(liveUrl(id)) && mediaReady(media(active.get(liveUrl(id)).frame));
+  const playing=id=>!disposed && isHostRoute() && active.has(liveUrl(id)) && mediaReady(media(active.get(liveUrl(id)).frame));
   const trusted=sender=>sender?.id===chrome.runtime.id && sender.url===chrome.runtime.getURL('src/viewer/viewer.html');
   async function powerFetch(url,method='GET') {
     return fetch(url,{method,credentials:'include',cache:'no-store',signal:AbortSignal.timeout(8000)});
@@ -101,8 +101,15 @@
   }
 
   function media(frame){try{return [...frame.contentDocument.querySelectorAll('video,audio')];}catch{return [];}}
-  function stop(id){const item=active.get(id);if(!item)return;clearInterval(item.timer);item.frame.remove();active.delete(id);item.start.disabled=false;item.stop.disabled=true;item.state.textContent='정지됨 · 이 창의 플레이어만 닫았습니다.';}
-  function cleanup(){disposed=true;for(const id of [...active.keys()])stop(id);container.remove();}
+  function stop(id){const item=active.get(id);if(!item)return;clearInterval(item.timer);item.cleanupAudio();item.frame.remove();active.delete(id);item.start.disabled=false;item.stop.disabled=true;item.state.textContent='정지됨 · 이 창의 플레이어만 닫았습니다.';}
+  function cleanup(){
+    if(disposed)return;
+    disposed=true;for(const id of [...active.keys()])stop(id);container.remove();
+    chrome.runtime?.onMessage?.removeListener(powerListener);
+    window.removeEventListener('hashchange',routeChanged);window.removeEventListener('popstate',routeChanged);
+  }
+  function routeChanged(){if(!isHostRoute())cleanup();}
+  window.addEventListener('hashchange',routeChanged);window.addEventListener('popstate',routeChanged);
   button('멀티뷰 닫기',cleanup);
   async function render(){
     try{
@@ -157,8 +164,27 @@
         const screen=document.createElement('div');screen.className='screen';card.append(screen);
         const placeholder=document.createElement('p');placeholder.textContent='방송 시작을 누르면 이 칸에서 재생합니다.\n다른 방송 시청은 통나무 시청 집계 대상에 영향을 줄 수 있습니다.';screen.append(placeholder);
         const state=document.createElement('p');state.className='state';state.textContent='방송 시작 전 · 수집 상태는 자동수령 패널에서 확인';card.append(state);
-        let muted=true;
+        let muted=true,trackedMedia=[];
+        function updateAudioLabel(){mute.textContent=muted?'음소거 ON':'음소거 OFF';}
+        function applyAudio(items){for(const v of items){if(v.muted!==muted)v.muted=muted;const level=Number(volume.value)/100;if(v.volume!==level)v.volume=level;}}
+        function nativeAudio(event){
+          if(disposed||!isHostRoute())return;
+          const frame=active.get(channel.url)?.frame;
+          // Detached/replaced players must not change the current card's settings.
+          const items=frame?media(frame):[];
+          if(event.target!==items[0])return;
+          muted=items[0].muted;volume.value=String(items[0].volume*100);updateAudioLabel();
+        }
+        function cleanupAudio(){for(const v of trackedMedia)v.removeEventListener?.('volumechange',nativeAudio);trackedMedia=[];}
+        function syncAudio(items){
+          for(const v of trackedMedia)if(!items.includes(v))v.removeEventListener?.('volumechange',nativeAudio);
+          const added=items.filter(v=>!trackedMedia.includes(v));
+          for(const v of added)v.addEventListener?.('volumechange',nativeAudio);
+          trackedMedia=items;applyAudio(added);
+        }
+        function commandAudio(){const frame=active.get(channel.url)?.frame;if(frame){const items=media(frame);syncAudio(items);applyAudio(items);}}
         const start=button('방송 시작',()=>{
+          if(!isHostRoute()){cleanup();return;}
           if(active.has(channel.url))return;
           if(!visible.includes(channel.url))return;
           if(active.size>=slotCount){state.textContent=`동시 재생 ${slotCount}개 한도입니다. 다른 칸을 정지한 뒤 시작하세요.`;return;}
@@ -168,8 +194,9 @@
           state.textContent='플레이어 로딩 중…';
           frame.dataset.cheesemoaLoadState='loading';
           const timer=setInterval(()=>{
-            if(disposed || !frame.isConnected || location.pathname!=='/lives' || location.hash!=='#cheesemoa-multiview'){clearInterval(timer);return;}
-            const items=media(frame);let blank=false;
+            if(!isHostRoute()){cleanup();return;}
+            if(disposed || !frame.isConnected){clearInterval(timer);return;}
+            const items=media(frame);syncAudio(items);let blank=false;
             try{const doc=frame.contentDocument;blank=doc?.URL==='about:blank'&&doc.readyState==='complete'&&!!doc.body&&!doc.body.childNodes.length;if(doc&&doc.URL!=='about:blank')sawDocument=true;}catch{}
             if(items.length)sawDocument=true;
             blankChecks=blank&&!sawDocument&&!items.length?blankChecks+1:0;
@@ -179,16 +206,17 @@
               if(blankChecks>=20&&!sawDocument&&!retried){retried=true;checks=0;blankChecks=0;frame.dataset.cheesemoaLoadState='retrying-blank';state.textContent='빈 플레이어 문서 감지 · 한 번 다시 연결합니다.';frame.src=channel.url;return;}
               frame.dataset.cheesemoaLoadState='unverified';state.textContent='재생 확인 실패 · '+(retried?'자동 재연결 1회 완료. ':'')+'공식 방송에서 상태를 확인하세요. 보안 정책은 변경하지 않습니다.';return;
             }
-            hintPower(frame,channel);for(const v of items){v.muted=muted;v.volume=Number(volume.value)/100;}
+            hintPower(frame,channel);
             frame.dataset.cheesemoaLoadState=items.length?(mediaReady(items)?'playing':'media-pending'):(retried?'retrying-blank':'loading');
             state.textContent=items.length?(mediaReady(items)?'재생 중 · 시청 집계는 치지직 서버 기준':items.some(v=>!v.paused)?'버퍼링 · 재생 준비 대기 · 보상 요청 대기':'일시정지 · 플레이어에서 재생 가능'):(retried?'빈 문서 재연결 중 · 추가 자동 재시도 없음':'플레이어 로딩 중…');
           },1000);
-          active.set(channel.url,{frame,timer,start,stop:stopButton,state});start.disabled=true;stopButton.disabled=false;screen.replaceChildren(frame);frame.src=channel.url;
+          active.set(channel.url,{frame,timer,start,stop:stopButton,state,cleanupAudio});start.disabled=true;stopButton.disabled=false;screen.replaceChildren(frame);frame.src=channel.url;
           syncSlots();
         },actions);start.className='primary';
         const stopButton=button('정지',()=>{stop(channel.url);screen.replaceChildren(placeholder);syncSlots();},actions);stopButton.disabled=true;
-        const mute=button('음소거 ON',()=>{muted=!muted;mute.textContent=muted?'음소거 ON':'음소거 OFF';},actions);
+        const mute=button('음소거 ON',()=>{muted=!muted;updateAudioLabel();commandAudio();},actions);
         const volume=document.createElement('input');volume.type='range';volume.min='0';volume.max='100';volume.value='50';volume.className='volume';volume.setAttribute('aria-label',`${label.textContent} 음량`);actions.append(volume);
+        volume.addEventListener('input',commandAudio);
         button('전체화면',()=>{card.requestFullscreen?.().catch(()=>{state.textContent='전체화면을 열지 못했습니다.';});},actions);
       }
       syncSlots();
