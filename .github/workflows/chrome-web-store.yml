@@ -1,0 +1,158 @@
+name: CheeseMoa Chrome Web Store (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Dry run, upload only, or upload then approved staged submission
+        required: true
+        default: dry-run
+        type: choice
+        options: [dry-run, upload, submit]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: cheesemoa-chrome-web-store
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.repository == 'ThankyouJerry/CheeseMoa' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      sha256: ${{ steps.package.outputs.sha256 }}
+      artifact_id: ${{ steps.artifact.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run validate
+      - run: npm run build
+      - name: Verify exact installation package
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t packages < <(find dist -maxdepth 1 -type f -name 'CheeseMoa-v*.zip')
+          test "${#packages[@]}" -eq 1
+          cp "${packages[0]}" dist/store-package.zip
+          digest=$(sha256sum dist/store-package.zip | cut -d ' ' -f 1)
+          node scripts/verify-store-artifact.mjs dist/store-package.zip "$digest"
+          echo "sha256=$digest" >> "$GITHUB_OUTPUT"
+      - name: Artifact approval summary
+        env:
+          PACKAGE_SHA256: ${{ steps.package.outputs.sha256 }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          const config = JSON.parse(readFileSync('config/chrome-web-store.json', 'utf8'));
+          const { version } = JSON.parse(readFileSync('manifest.json', 'utf8'));
+          const summary = { repository: process.env.GITHUB_REPOSITORY, commit: process.env.GITHUB_SHA, version, sha256: process.env.PACKAGE_SHA256, publisherId: config.publisherId, itemId: config.itemId, identityVerified: config.verified };
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, 'Review this exact artifact before approving upload or staged submission:\n\n```json\n' + JSON.stringify(summary, null, 2) + '\n```\n');
+          NODE
+      - name: Local plan (zero store requests)
+        if: inputs.mode == 'dry-run'
+        run: node scripts/cws-api.mjs upload --artifact dist/store-package.zip --sha256 '${{ steps.package.outputs.sha256 }}' --dry-run
+      - name: Check configured approval policies without store credentials
+        if: inputs.mode != 'dry-run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_MODE: ${{ inputs.mode }}
+        run: node scripts/check-store-approval.mjs "$RELEASE_MODE"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        id: artifact
+        with:
+          name: verified-store-package
+          path: dist/store-package.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  upload:
+    if: inputs.mode == 'upload' || inputs.mode == 'submit'
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: cws-upload
+    outputs:
+      receipt_id: ${{ steps.receipt.outputs.artifact-id }}
+      receipt_sha256: ${{ steps.receipt_digest.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.artifact_id }}
+          path: store-artifact
+          merge-multiple: true
+      - run: node scripts/verify-store-artifact.mjs store-artifact/store-package.zip '${{ needs.prepare.outputs.sha256 }}'
+      - name: Recheck approval policies
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_MODE: ${{ inputs.mode }}
+        run: node scripts/check-store-approval.mjs "$RELEASE_MODE"
+      - name: Upload only (never submit or publish)
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+        run: node scripts/cws-api.mjs upload --artifact store-artifact/store-package.zip --sha256 '${{ needs.prepare.outputs.sha256 }}' --execute --output store-receipt.json
+      - id: receipt_digest
+        run: echo "sha256=$(sha256sum store-receipt.json | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        id: receipt
+        with:
+          name: store-upload-receipt
+          path: store-receipt.json
+          if-no-files-found: error
+          retention-days: 7
+
+  submit:
+    if: inputs.mode == 'submit'
+    needs: [prepare, upload]
+    runs-on: ubuntu-latest
+    environment: cws-submit
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.artifact_id }}
+          path: store-artifact
+          merge-multiple: true
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.upload.outputs.receipt_id }}
+          path: store-artifact
+          merge-multiple: true
+      - name: Verify same-run bytes and approval policies
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo '${{ needs.upload.outputs.receipt_sha256 }}  store-artifact/store-receipt.json' | sha256sum --check --strict
+          node scripts/verify-store-artifact.mjs store-artifact/store-package.zip '${{ needs.prepare.outputs.sha256 }}'
+          node scripts/check-store-approval.mjs submit
+      - name: Submit for review with staged publishing only
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_SUBMISSION_APPROVED: ${{ needs.prepare.outputs.sha256 }}
+        run: node scripts/cws-api.mjs submit --artifact store-artifact/store-package.zip --sha256 '${{ needs.prepare.outputs.sha256 }}' --receipt store-artifact/store-receipt.json --execute

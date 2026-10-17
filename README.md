@@ -180,6 +180,8 @@ dist/
 ZIP 최상단에는 Chrome이 요구하는 `manifest.json`이 위치합니다. `v*` 태그를 푸시하면
 GitHub Actions가 테스트, 패키징, 체크섬 생성과 Release 게시를 자동으로 수행합니다.
 
+Chrome Web Store는 별도의 [승인 기반 자동화](docs/CHROME_WEB_STORE_RELEASE.md)를 사용합니다. 기본값은 네트워크 요청 없는 검증이며, 실제 스토어 ID·인증·승인 환경 설정 전에는 업로드와 제출이 차단됩니다. GitHub Release 게시와 스토어 제출은 별개입니다.
+
 ## 프로젝트 구조
 
 ```text
