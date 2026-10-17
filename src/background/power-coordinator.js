@@ -3,11 +3,18 @@ import {createPowerTransport} from '../shared/power-transport.js';
 import {checkPowerAccount} from '../shared/login-session.js';
 import {POWER_BUILD} from '../shared/power-build.js';
 const KEY='cheesemoa.power.owner.v1';
+export const POWER_PREFERENCE_KEY='cheesemoa.power.preference.v1';
 const stopped=()=>Object.assign(new Error('자동수령 실행 주체가 변경되거나 OFF입니다.'),{code:'OWNER_STOPPED'});
 export function createPowerCoordinator({chromeApi=chrome,locks=navigator.locks,now=Date.now,uuid=()=>crypto.randomUUID()}){
  const sessionStore=chromeApi.storage.session,pending=new Map();
  const read=async()=> (await sessionStore.get(KEY))[KEY]||{enabled:false};
  const save=s=>sessionStore.set({[KEY]:s});
+ const defaultAllowed=async()=>{
+  const stored=(await sessionStore.get(KEY))[KEY];
+  const preference=(await chromeApi.storage.local.get(POWER_PREFERENCE_KEY))[POWER_PREFERENCE_KEY];
+  // Existing runtime OFF/pending/error is never replaced by a new default.
+  return stored===undefined&&(preference===undefined||preference?.enabled===true);
+ };
  const owns=(s,c)=>s.tabId===c.tabId&&s.documentId===c.documentId&&s.channelId===c.channelId;
  const same=(s,c,epoch)=>s.enabled&&owns(s,c)&&s.epoch===epoch;
  const channelScope=c=>`channel:${c.channelId}`;
@@ -25,13 +32,13 @@ export function createPowerCoordinator({chromeApi=chrome,locks=navigator.locks,n
   if(url.origin!=='https://chzzk.naver.com'||(!control&&!((url.pathname===`/live/${id}`&&!url.search&&!url.hash)||(url.pathname==='/lives'&&url.hash==='#cheesemoa-multiview'&&!url.search))))throw new Error('UNTRUSTED_PAGE');
   return {tabId:sender.tab.id,documentId:sender.documentId,channelId:id};
  }
- async function change(fn){return locks.request('cheesemoa.power.owner',async()=>{
+ async function change(fn,afterSave){return locks.request('cheesemoa.power.owner',async()=>{
   const old=await read(),next=await fn(old);
   if(next!==old){
    if(next.epoch!==old.epoch||!next.enabled)pending.get(old.epoch)?.abort();
    await save(next);
    if(old.enabled&&(!next.enabled||old.tabId!==next.tabId||old.documentId!==next.documentId))void chromeApi.tabs.sendMessage(old.tabId,{type:'cheesemoa-owner-state',epoch:old.epoch,enabled:false},{documentId:old.documentId}).catch(()=>{});
-  }return next;
+  }if(afterSave)await afterSave();return next;
  })}
  function validRequest(id){if(typeof id!=='string'||id.length<8||id.length>128)throw new Error('INVALID_START_REQUEST')}
  return {removeTab:tabId=>change(s=>s.tabId===tabId?{...s,enabled:false,pendingStart:false}:s),async handle(m,sender){
@@ -39,9 +46,11 @@ export function createPowerCoordinator({chromeApi=chrome,locks=navigator.locks,n
   const c=contextFor(m,sender);
   if(m.action==='start'){
    validRequest(m.startRequestId);
-   const state=await change(s=>{
+   const state=await change(async s=>{
+    if(m.automatic===true&&!await defaultAllowed())throw stopped();
     if(s.blockNewStarts||(s.cancelledStarts||[]).includes(cancellationKey(c,m.startRequestId)))throw stopped();
     if(owns(s,c)&&s.startRequestId===m.startRequestId)return s;
+    if(m.automatic!==true)await chromeApi.storage.local.set({[POWER_PREFERENCE_KEY]:{enabled:true}});
     // Preparation is never restorable ON. Only a received response can be activated.
     return {...s,...c,enabled:false,pendingStart:true,startRequestId:m.startRequestId,startDocumentId:c.documentId,epoch:uuid(),accountId:null};
    });
@@ -62,8 +71,14 @@ export function createPowerCoordinator({chromeApi=chrome,locks=navigator.locks,n
     if(matches)keys.add(cancellationKey({...c,documentId:s.startDocumentId},m.startRequestId));
     // Bound memory without discarding a cancellation that could allow a delayed ON.
     return {...s,cancelledStarts:[...keys].slice(0,1024),blockNewStarts:s.blockNewStarts||keys.size>1024,...(matches?{enabled:false,pendingStart:false}:{})};
+   },async()=>{
+    // Save/abort runtime OFF first; keep preference ordering under the same lock.
+    if(m.remember===true)try{await chromeApi.storage.local.set({[POWER_PREFERENCE_KEY]:{enabled:false}})}catch{
+     throw Object.assign(new Error('OFF was applied but its preference could not be saved.'),{code:'POWER_PREFERENCE_SAVE_FAILED'});
+    }
    });return {enabled:false};
   }
+  if(m.action==='disable-default'){await change(async s=>{await chromeApi.storage.local.set({[POWER_PREFERENCE_KEY]:{enabled:false}});return s});return {enabled:false}}
   if(m.action==='stop'){await change(s=>same(s,c,m.epoch)?{...s,enabled:false,pendingStart:false}:s);return {enabled:false}}
   if(m.action==='status'){
    const s=await change(s=>{
@@ -71,7 +86,8 @@ export function createPowerCoordinator({chromeApi=chrome,locks=navigator.locks,n
     return s.enabled&&s.tabId===c.tabId&&s.channelId===c.channelId&&s.documentId!==c.documentId?{...s,documentId:c.documentId,epoch:uuid()}:s;
    });
    const own=s.enabled&&owns(s,c);
-   return {enabled:!!own,otherEnabled:!!s.enabled&&!own,epoch:own?s.epoch:null,startRequestId:own?s.startRequestId:null,...backoff(s,c),build:POWER_BUILD};
+   const defaultOn=await defaultAllowed();
+   return {enabled:!!own,defaultOn,otherEnabled:!!s.enabled&&!own,epoch:own?s.epoch:null,startRequestId:own?s.startRequestId:null,...backoff(s,c),build:POWER_BUILD};
   }
   const epoch=m.epoch,s=await read();if(!same(s,c,epoch))throw stopped();
   const wait=backoff(s,c);

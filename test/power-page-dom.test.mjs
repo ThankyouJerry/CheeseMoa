@@ -10,6 +10,8 @@ for(const mode of ["normal","post-fail","pending-start"])test(`real generated pa
  const failPostRead=mode==='post-fail';let releaseStart;
  const dom=new JSDOM('<title>포포 모의 방송</title><video></video>',{url:`https://chzzk.naver.com/live/${simChannel}`,runScripts:'outside-only'});
  const local=memoryStore(),session=memoryStore(),locks=memoryLocks(),listeners=new Set();let puts=0,poll,postFailed=false;
+ // This suite exercises explicit manual ON/OFF; fresh-default activation has its own regression suite.
+ await local.set({'cheesemoa.power.preference.v1':{enabled:false}});
  dom.window.setInterval=fn=>{poll=fn;return 1};dom.window.clearInterval=()=>{};
  const sender={id:'test',frameId:0,tab:{id:1},documentId:'doc',url:dom.window.location.href};
  const api={runtime:{id:'test'},storage:{local,session},tabs:{sendMessage:(_,m)=>new Promise(resolve=>{for(const fn of listeners)fn(m,{id:'test',url:'chrome-extension://test/src/background/power-worker.js'},resolve)})}};

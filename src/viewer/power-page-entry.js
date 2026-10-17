@@ -18,10 +18,12 @@ if(window===window.top&&location.origin==='https://chzzk.naver.com'&&
   const detail=document.createElement('p');section.append(detail);
   const counts=document.createElement('p');counts.textContent='이 실행의 확정 수령 0건 · 최근 조회 없음';section.append(counts);
   const receiptPanel=attachPowerReceiptPanel({section,document});
+  let syncPanelLayout=()=>{};
   let enabled=false,confirmed=0,lastCheck=null,poll,restoredForChoices=false;
   function frames(){return [...(document.querySelector('#cheesemoa-site-host')?.shadowRoot?.querySelectorAll('iframe')||[])]}
   function playing(channel){try{const doc=location.pathname===`/live/${channel}`?document:frames().find(f=>f.src===`https://chzzk.naver.com/live/${channel}`)?.contentDocument;return !!doc&&[...doc.querySelectorAll('video,audio')].some(v=>!v.paused&&v.readyState>=2)}catch{return false}}
   function syncChannels(){
+   syncPanelLayout();
    const currentDirect=location.pathname.match(/^\/live\/([a-f0-9]{32})$/i)?.[1];
    if(currentDirect!==direct){void owner.stop();direct=currentDirect;restoredForChoices=true;}
    const choices=direct?[{id:direct,name:`현재 방송 (${direct.slice(0,8)}…)`}]:frames().map(f=>({id:f.src.match(/\/live\/([a-f0-9]{32})$/i)?.[1],name:f.title})).filter(c=>c.id);
@@ -56,9 +58,9 @@ if(window===window.top&&location.origin==='https://chzzk.naver.com'&&
   let connected=false;
   function connect(){if(connected)return;connected=true;chrome.runtime.onMessage.addListener(listener);poll=setInterval(syncChannels,1000)}
   function disconnect(){if(!connected)return;connected=false;clearInterval(poll);chrome.runtime.onMessage.removeListener(listener);restoredForChoices=false;owner.suspend()}
-  on.addEventListener('click',()=>void owner.start());off.addEventListener('click',()=>void owner.stop());select.addEventListener('change',()=>void owner.stop());
+  on.addEventListener('click',()=>void owner.start());off.addEventListener('click',()=>void owner.stop({remember:true}));select.addEventListener('change',()=>void owner.stop());
   document.documentElement.append(holder);
-  attachFloatingPowerPanel({holder,root,section,heading,storage:chrome.storage?.local});
+  syncPanelLayout=attachFloatingPowerPanel({holder,root,section,heading,storage:chrome.storage?.local})||(()=>{});
   connect();syncChannels();
   // Discover player starts without restarting or changing any existing player.
   const observer=new MutationObserver(()=>syncChannels());const host=document.querySelector('#cheesemoa-site-host')?.shadowRoot;if(host)observer.observe(host,{childList:true,subtree:true});

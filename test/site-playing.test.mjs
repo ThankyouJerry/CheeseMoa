@@ -48,13 +48,15 @@ test('visible playback status must not report playing while readiness gate rejec
  }finally{f.dom.window.close()}
 });
 
-test('idle multiview does not invent collection OFF and explains the actual opt-in lifecycle',async()=>{
+test('idle multiview explains fresh default ON while preserving saved and current OFF',async()=>{
  const f=await fixture({start:false});try{
   assert.equal(f.probe(),false);
   assert.doesNotMatch(f.root.querySelector('.state').textContent,/자동 수령 OFF/);
   const notice=f.root.querySelector('.notice').textContent;
-  assert.match(notice,/치즈모아 자동수령/);
-  assert.match(notice,/해당 방송을 선택하고 ON/);
+  assert.match(notice,/자동수령 패널/);
+  assert.match(notice,/수집할 방송과 ON\/OFF 상태/);
+  assert.match(notice,/새 설정은 기본 ON/);
+  assert.match(notice,/저장한 OFF와 현재 실행의 OFF는 유지/);
   assert.match(notice,/관리 창을 열어둘 필요가 없습니다/);
   assert.match(notice,/실제 ON·최근 조회·확정 수령/);
  }finally{f.dom.window.close()}
