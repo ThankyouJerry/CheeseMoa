@@ -1,0 +1,33 @@
+# Chzzk Platter source comparison
+
+This is a read-only source audit, not an installation or live playback test of Chzzk Platter. It does not establish the cause of CheeseMoa's reported HTTP 403 or official player error. No cookies, credentials, security headers, or access restrictions were changed.
+
+Reference: [`lirpa62/Chzzk-Platter`, commit `3fec7e1df0bed504d003e897c983054dec97306a`](https://github.com/lirpa62/Chzzk-Platter/tree/3fec7e1df0bed504d003e897c983054dec97306a), manifest version 1.60.0. The project uses the [MIT license, Copyright (c) 2026 Lirpa](https://github.com/lirpa62/Chzzk-Platter/blob/3fec7e1df0bed504d003e897c983054dec97306a/LICENSE). This document describes the implementation without copying code. Any later copying of substantial code must retain the applicable copyright and permission notice; bundled third-party assets have their own licenses.
+
+## Already shared architecture
+
+Platter hosts multiview on the official `https://chzzk.naver.com/lives` page and loads official `/live/<channelId>` pages as same-origin iframes ([multiviewWatch.js, lines 19–22 and 67–92](https://github.com/lirpa62/Chzzk-Platter/blob/3fec7e1df0bed504d003e897c983054dec97306a/src/multiviewWatch.js#L19)). Its content scripts also run inside frames ([manifest.json](https://github.com/lirpa62/Chzzk-Platter/blob/3fec7e1df0bed504d003e897c983054dec97306a/manifest.json)). CheeseMoa already uses this architecture through `site-host.js` and the `all_frames` player bridge. Repeating that migration is not a new fix.
+
+Both implementations preserve existing frames during routine layout/control changes. Reassigning `iframe.src` or rebuilding frames would restart official pages and should not be introduced as a routine recovery strategy.
+
+## Concrete differences and limits
+
+| Area | Platter source | CheeseMoa comparison and supported implication |
+| --- | --- | --- |
+| Frame permissions/referrer | [multiviewWatch.js, lines 1709–1716](https://github.com/lirpa62/Chzzk-Platter/blob/3fec7e1df0bed504d003e897c983054dec97306a/src/multiviewWatch.js#L1709) uses explicit wildcard feature origins and `referrerPolicy = origin`. | CheeseMoa uses the ordinary autoplay/encrypted-media/picture-in-picture/fullscreen allow list. There is no evidence that broader permissions or a referrer change fixes the reported failure. Do not expand permissions based on this difference alone. |
+| Initial request scheduling | [multiviewWatch.js, lines 100–102](https://github.com/lirpa62/Chzzk-Platter/blob/3fec7e1df0bed504d003e897c983054dec97306a/src/multiviewWatch.js#L100) and [1820–1837](https://github.com/lirpa62/Chzzk-Platter/blob/3fec7e1df0bed504d003e897c983054dec97306a/src/multiviewWatch.js#L1820) stagger four or more frame loads by 100 ms. | Potentially useful for a future batch-start operation. CheeseMoa currently starts each broadcast through its individual user control, so the benefit is unproven. This is not evidence of a 403 fix. |
+| Player layout | [content.js, lines 23162–23276](https://github.com/lirpa62/Chzzk-Platter/blob/3fec7e1df0bed504d003e897c983054dec97306a/src/content.js#L23162) reconciles native chat folding and wide-screen controls; [content.css, line 11957 onward](https://github.com/lirpa62/Chzzk-Platter/blob/3fec7e1df0bed504d003e897c983054dec97306a/src/content.css#L11957) allocates space for video and expanded chat during advertisements. | CheeseMoa measures the video within a stable 1280×720 iframe and transforms that existing frame. Native layout reconciliation could address clipping, but must preserve advertisements and avoid repeated toggle clicks. It does not explain a server playback error. |
+| Diagnostic detail | [content.js, lines 22388–22416](https://github.com/lirpa62/Chzzk-Platter/blob/3fec7e1df0bed504d003e897c983054dec97306a/src/content.js#L22388) reports media time, readiness, buffered/seekable ranges and advertisement state. [multiviewDiagnostics.js](https://github.com/lirpa62/Chzzk-Platter/blob/3fec7e1df0bed504d003e897c983054dec97306a/src/multiviewDiagnostics.js#L1) implements a bounded recorder. | CheeseMoa already distinguishes progress from merely having a media element. A bounded, user-requested diagnostic export is a useful extension: classify loading, paused, stalled and media-error states without collecting credentials or claiming a server cause from DOM evidence. |
+| Frame configuration/messages | [multiviewWatch.js, lines 23–92](https://github.com/lirpa62/Chzzk-Platter/blob/3fec7e1df0bed504d003e897c983054dec97306a/src/multiviewWatch.js#L23) stores frame configuration in same-tab sessionStorage and attaches a session token to messages; [content.js, lines 308–329](https://github.com/lirpa62/Chzzk-Platter/blob/3fec7e1df0bed504d003e897c983054dec97306a/src/content.js#L308) checks parent origin/source/token. | CheeseMoa checks the exact parent route/origin and actual frame membership. A token can reduce message mix-ups, but same-origin storage is not a secret boundary against the host page and does not solve playback authentication. |
+
+## Behaviors not to copy as evidence of success
+
+Platter's `FRAME_READY` can be sent when the document is complete ([content.js, line 23346](https://github.com/lirpa62/Chzzk-Platter/blob/3fec7e1df0bed504d003e897c983054dec97306a/src/content.js#L23346)). That signal alone does not prove video progression, viewer counting, or reward eligibility.
+
+Its host bootstrap disables foreign styles and replaces the body ([multiviewHostBoot.js, lines 16–74](https://github.com/lirpa62/Chzzk-Platter/blob/3fec7e1df0bed504d003e897c983054dec97306a/src/multiviewHostBoot.js#L16)). This is more invasive than CheeseMoa's shadow-root overlay. The source audit provides no reason to adopt that behavior to fix a network error.
+
+The next defensible investigation is to correlate sanitized media progress/error observations with the actual failed response or visible official-player message. Source differences alone cannot establish why a particular live channel fails, and no access-control bypass is proposed.
+
+## Applied behavior in 0.1.13
+
+A user-requested, read-only per-card media snapshot is integrated, rather than copying the recorder or synchronization modules. Gemini analyzed the exact diagnostics source section and authored the initial numeric helper. Integration isolates optional getter failures and computes buffer-ahead only for the range containing currentTime (a gap returns0). The dialog adds no network request, media control, timer, storage or export. It omits URLs, channel/account IDs and raw error text. This helps distinguish failed-document access from absent media and zero-progress media; it does not repair the underlying connection failure.
