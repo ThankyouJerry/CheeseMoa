@@ -68,3 +68,66 @@ test("reward identity is hashed, stable, logout-aware and unavailable identity f
   assert.equal(await checkPowerAccount(fetcher({loggedIn:false})),null);
   await assert.rejects(checkPowerAccount(fetcher({loggedIn:true})),/계정 식별/);
 });
+
+test('confirmed login survives synchronous or asynchronous follow-up failure without suggesting relogin', async () => {
+  for (const followUp of [() => {throw new Error('private callback details');}, async () => {throw new Error('private callback details');}]) {
+    const dom = new JSDOM('<button id="login"></button>');
+    const previous = {document: globalThis.document, fetch: globalThis.fetch};
+    globalThis.document = dom.window.document;
+    let requests = 0;
+    globalThis.fetch = async () => {requests++; return {ok: true, json: async () => ({code: 200, content: {loggedIn: true}})};};
+    try {
+      const button = document.querySelector('button');
+      let followUpCalls = 0;
+      bindLoginCheck(button, () => {followUpCalls++; if (followUpCalls === 1) return followUp();});
+      button.click();
+      await new Promise(resolve => setImmediate(resolve));
+      const panel = document.querySelector('.login-status');
+      assert.match(panel.textContent, /로그인이 확인됐습니다/);
+      assert.doesNotMatch(panel.textContent, /로그인 상태를 확인하지 못했습니다|로그아웃|private callback details/);
+      assert.match(panel.textContent, /로그인 확인 후 화면 작업을 완료하지 못했습니다/);
+      assert.equal(panel.querySelector('a').hidden, true);
+      assert.equal(button.disabled, false);
+      assert.equal(requests, 1);
+      button.click();
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(followUpCalls, 2);
+      assert.equal(requests, 2);
+      assert.match(panel.textContent, /로그인이 확인됐습니다/);
+      assert.doesNotMatch(panel.textContent, /작업을 완료하지 못했습니다/);
+      assert.equal(panel.querySelector('a').hidden, true);
+      assert.equal(button.disabled, false);
+    } finally {
+      dom.window.close();
+      Object.assign(globalThis, previous);
+    }
+  }
+});
+
+test('login check does not read cookies or persist session and profile data', async () => {
+  const dom = new JSDOM('<button></button>', {url: 'https://test.invalid'});
+  const previous = {document: globalThis.document, window: globalThis.window, fetch: globalThis.fetch, chrome: globalThis.chrome};
+  globalThis.document = dom.window.document;
+  globalThis.window = dom.window;
+  let cookieReads = 0, cookieWrites = 0, storageAccesses = 0;
+  Object.defineProperty(document, 'cookie', {get() {cookieReads++; return 'private_cookie_value';}, set() {cookieWrites++;}});
+  for (const name of ['localStorage', 'sessionStorage']) Object.defineProperty(dom.window, name, {get() {storageAccesses++; throw new Error('Session checks must not access storage');}});
+  globalThis.chrome = {get storage() {storageAccesses++; throw new Error('Session checks must not access extension storage');}};
+  globalThis.fetch = async (_url, options) => {
+    assert.equal(options.credentials, 'include');
+    assert.equal(options.headers, undefined);
+    assert.equal(options.body, undefined);
+    return {ok: true, json: async () => ({code: 200, content: {loggedIn: true, nickname: 'private_profile_name', userIdHash: 'private_identity'}})};
+  };
+  try {
+    bindLoginCheck(document.querySelector('button'));
+    document.querySelector('button').click();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.match(document.querySelector('.login-status').textContent, /로그인이 확인됐습니다/);
+    assert.doesNotMatch(document.body.textContent, /private_profile_name|private_identity|private_cookie_value/);
+    assert.equal(cookieReads, 0); assert.equal(cookieWrites, 0); assert.equal(storageAccesses, 0);
+  } finally {
+    dom.window.close();
+    Object.assign(globalThis, previous);
+  }
+});

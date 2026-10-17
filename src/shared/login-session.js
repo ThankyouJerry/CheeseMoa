@@ -35,7 +35,12 @@ export function bindLoginCheck(button, onAuthenticated) {
       const loggedIn = await checkLoginSession();
       if (loggedIn) {
         text.textContent = "현재 브라우저의 로그인이 확인됐습니다. 방송을 새로고침하면 다시 확인할 수 있습니다. 내장 화면에서만 로그인되지 않으면 동일 프로필·시크릿 여부와 사이트 쿠키 설정을 확인해주세요. 로그인 상태 확인은 내장 프레임의 로그인 성공을 보장하지 않습니다.";
-        if (onAuthenticated) await onAuthenticated();
+        // A failed follow-up (for example, refreshing a player) does not undo
+        // the service's confirmed authentication result.
+        if (onAuthenticated) {
+          try { await onAuthenticated(); }
+          catch { text.textContent += " 로그인 확인 후 화면 작업을 완료하지 못했습니다. 로그인 확인 결과는 유지됩니다."; }
+        }
       } else {
         text.textContent = "이 요청에서는 로그인 세션을 확인하지 못했습니다. 일반 치지직 탭도 로그아웃 상태라면 직접 로그인해주세요. 일반 탭은 로그인돼 있다면 브라우저의 사이트 쿠키 제한을 확인해주세요. 쿠키를 복사하거나 설정을 자동 변경하지 않습니다.";
         link.hidden = false;
