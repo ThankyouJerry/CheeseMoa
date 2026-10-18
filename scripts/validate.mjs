@@ -1,3 +1,4 @@
+import { validateReleaseFiles } from './validate-release.mjs';
 import assert from "node:assert/strict";
 import { readFile, access } from "node:fs/promises";
 
@@ -44,3 +45,5 @@ const requiredFiles = [
 await Promise.all(requiredFiles.map((file) => access(file)));
 
 console.log(`CheeseMoa ${manifest.version}: manifest and ${requiredFiles.length} assets validated`);
+
+await validateReleaseFiles();
