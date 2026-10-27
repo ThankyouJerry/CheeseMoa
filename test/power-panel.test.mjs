@@ -10,7 +10,7 @@ test('legacy manager reads scoped receipts but cannot start a competing collecto
  const dom=new JSDOM(await readFile(new URL('../src/viewer/viewer.html',import.meta.url),'utf8'));
  const saved=new Map(['window','document','navigator','chrome','fetch'].map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));
  const store=memoryStore(),locks=memoryLocks(),channel='a'.repeat(32);let puts=0;
- const fetcher=async(url,o={})=>{if(o.method==='PUT'){puts++;return new Response(null,{status:204})}return new Response(JSON.stringify({code:200,content:url.includes('getUserStatus')?{loggedIn:true,userIdHash:'account_test_123'}:{active:true,amount:100,claims:[{claimId:'one',claimType:'WATCH_1_HOUR',saveType:'ACTIVE',state:'COMPLIED',amount:10}]}}))};
+ const fetcher=async(url,o={})=>{if(o.method==='PUT'){puts++;return new Response(null,{status:204})}return new Response(JSON.stringify({code:200,content:url.includes('getUserStatus')?{loggedIn:true,userIdHash:'account_test_123'}:{active:true,amount:100,claims:[{claimId:'one',claimType:'WATCH_5_MIN',saveType:'ACTIVE',state:'COMPLIED',amount:10}]}}))};
  const account=await checkPowerAccount(fetcher);await createPowerCollector({storage:store,locks,fetcher}).collect(channel,{enabled:true,accountId:account});
  globalThis.window=dom.window;globalThis.document=dom.window.document;globalThis.chrome={storage:{local:store}};globalThis.fetch=fetcher;Object.defineProperty(globalThis,'navigator',{configurable:true,value:{locks}});
  try{

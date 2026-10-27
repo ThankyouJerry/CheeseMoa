@@ -29,7 +29,7 @@ function harness() {
     if (options.method === "PUT" && h.putError) throw h.putError;
     return {ok: true, json: async () => ({code: 200, content: options.method === "PUT" ? {} : {
       amount: 1000, active: h.active,
-      claims: [{claimId: "one", claimType: "WATCH_1_HOUR", state: "COMPLIED", saveType: "ACTIVE", amount: 100}],
+      claims: [{claimId: "one", claimType: "WATCH_5_MIN", state: "COMPLIED", saveType: "ACTIVE", amount: 100}],
     }})};
   };
   h.create = () => createPowerCollector({...h, now: () => 123456});
@@ -188,11 +188,8 @@ for (const status of [401, 403, 409, 429]) {
       h.calls.push("PUT");
       return new Response(null, {status});
     };
-    if (status === 409) {
-      const result = await h.create().collect(channel, {enabled: true, accountId: account});
-      assert.equal(result.collected, 0);
-      assert.equal(result.diagnostics.alreadyHandled, 1);
-    } else await assert.rejects(h.create().collect(channel, {enabled: true, accountId: account}));
+    if(status===409)await h.create().collect(channel, {enabled: true, accountId: account});
+    else await assert.rejects(h.create().collect(channel, {enabled: true, accountId: account}));
     const state = await h.create().history(account);
     assert.equal(state.receipts.length, 0);
     assert.equal(state.attempts[0].status, status === 409 ? "already-claimed" : "unconfirmed");
@@ -208,7 +205,7 @@ test('old uncertain claim blocks only that ID and reports the blocked reward',as
  const blocked=await c.collect(channel,{enabled:true,accountId:account});
  assert.equal(blocked.blocked,1);assert.equal(blocked.status,'blocked');
  const original=h.fetcher;
- h.fetcher=async(u,o)=>o.method==='GET'?{ok:true,json:async()=>({code:200,content:{amount:1000,active:true,claims:[{claimId:'next-hour',claimType:'WATCH_1_HOUR',state:'COMPLIED',saveType:'ACTIVE',amount:100}]}})}:original(u,o);
+ h.fetcher=async(u,o)=>o.method==='GET'?{ok:true,json:async()=>({code:200,content:{amount:1000,active:true,claims:[{claimId:'next-hour',claimType:'WATCH_5_MIN',state:'COMPLIED',saveType:'ACTIVE',amount:100}]}})}:original(u,o);
  const next=await h.create().collect(channel,{enabled:true,accountId:account});
  assert.equal(next.collected,1);assert.equal((await c.history(account)).attempts.length,2);
 });

@@ -10,15 +10,13 @@ for(const mode of ["normal","post-fail","pending-start"])test(`real generated pa
  const failPostRead=mode==='post-fail';let releaseStart;
  const dom=new JSDOM('<title>포포 모의 방송</title><video></video>',{url:`https://chzzk.naver.com/live/${simChannel}`,runScripts:'outside-only'});
  const local=memoryStore(),session=memoryStore(),locks=memoryLocks(),listeners=new Set();let puts=0,poll,postFailed=false;
- // This suite exercises explicit manual ON/OFF; fresh-default activation has its own regression suite.
- await local.set({'cheesemoa.power.preference.v1':{enabled:false}});
  dom.window.setInterval=fn=>{poll=fn;return 1};dom.window.clearInterval=()=>{};
  const sender={id:'test',frameId:0,tab:{id:1},documentId:'doc',url:dom.window.location.href};
  const api={runtime:{id:'test'},storage:{local,session},tabs:{sendMessage:(_,m)=>new Promise(resolve=>{for(const fn of listeners)fn(m,{id:'test',url:'chrome-extension://test/src/background/power-worker.js'},resolve)})}};
  const coordinator=createPowerCoordinator({chromeApi:api,locks});
  dom.window.chrome={runtime:{id:'test',getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:fn=>listeners.add(fn),removeListener:fn=>listeners.delete(fn)},sendMessage:async m=>{try{const result=await coordinator.handle(m,{...sender,url:dom.window.location.href});if(mode==='pending-start'&&m.action==='start')await new Promise(resolve=>releaseStart=resolve);return {ok:true,result}}catch(e){return {ok:false,error:safePowerError(e)}}}}};
  dom.window.AbortSignal=AbortSignal;
- dom.window.fetch=async(url,o)=>{if(o.method==='PUT'){puts++;return new Response(null,{status:204})}if(failPostRead&&puts&&!url.includes('getUserStatus')&&!postFailed){postFailed=true;return new Response(null,{status:503})}return new Response(JSON.stringify({code:200,content:url.includes('getUserStatus')?{loggedIn:true,userIdHash:'test_account_123'}:{active:true,amount:100,claims:[{claimId:'one',claimType:'WATCH_1_HOUR',saveType:'ACTIVE',state:'COMPLIED'}]}}))};
+ dom.window.fetch=async(url,o)=>{if(o.method==='PUT'){puts++;return new Response(null,{status:204})}if(failPostRead&&puts&&!url.includes('getUserStatus')&&!postFailed){postFailed=true;return new Response(null,{status:503})}return new Response(JSON.stringify({code:200,content:url.includes('getUserStatus')?{loggedIn:true,userIdHash:'test_account_123'}:{active:true,amount:100,claims:[{claimId:'one',claimType:'WATCH_5_MIN',saveType:'ACTIVE',state:'COMPLIED'}]}}))};
  const video=dom.window.document.querySelector('video');Object.defineProperties(video,{paused:{value:false},readyState:{value:4}});
  try{
   dom.window.eval(source);await flushRuntime();

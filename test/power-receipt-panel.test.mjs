@@ -10,7 +10,7 @@ function collector({failPost=false,failSave=false,sameAccount=true,secondFails=f
  const c=createPowerCollector({storage,locks:{request:(_,o,fn)=>fn()},now:()=>1234,fetcher:async(_,o)=>{
   if(o.method==='PUT'){puts++;if(secondFails&&puts===2)return new Response(null,{status:403});return new Response(JSON.stringify({code:200,content:null}),{status:200})}
   if(failPost&&puts)return new Response(null,{status:503});
-  return new Response(JSON.stringify({code:200,content:{active:true,amount:200,claims:(secondFails?['a','b']:['a']).map(claimId=>({claimId,claimType:'WATCH_1_HOUR',state:'COMPLIED',saveType:'ACTIVE',amount:100}))}}));
+  return new Response(JSON.stringify({code:200,content:{active:true,amount:200,claims:(secondFails?['a','b']:['a']).map(claimId=>({claimId,claimType:'WATCH_5_MIN',state:'COMPLIED',saveType:'ACTIVE',amount:100}))}}));
  }});
  return {collect:()=>c.collect(channel,{enabled:true,accountId:account,isSameAccount:()=>sameAccount}),data:()=>data,puts:()=>puts};
 }

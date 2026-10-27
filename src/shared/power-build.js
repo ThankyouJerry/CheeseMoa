@@ -1,1 +1,1 @@
-export const POWER_BUILD = "power-20261017.10";
+export const POWER_BUILD = "power-20261026.2";

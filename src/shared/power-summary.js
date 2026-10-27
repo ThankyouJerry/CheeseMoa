@@ -18,10 +18,12 @@ export function formatPowerSummary(summary) {
 }
 
 export function formatPowerDiagnostic(row) {
+  if(row.collectionMethod==='official-ui'&&row.confirmation==='claim-and-balance')
+    return `공식 받기 UI · 해당 보상 상태·보유량 재조회 확인 · 요청 실행 ${/^power-\d{8}\.\d+$/.test(row.build||'')?row.build:'미기록'}`;
   const http = Number.isInteger(row.httpStatus) ? row.httpStatus : "미기록";
   const code = typeof row.applicationCode === "number" ? row.applicationCode :
     ["FORBIDDEN","UNAUTHORIZED","NOT_FOUND","CONFLICT","BAD_REQUEST","TOO_MANY_REQUESTS","INTERNAL_SERVER_ERROR"].includes(row.applicationCode) ? row.applicationCode : "미기록";
-  const error = ["HTTP_ERROR","APPLICATION_ERROR","INVALID_JSON","BODY_READ_ERROR","NETWORK_ERROR","TIMEOUT","PENDING_OR_UNEXPECTED_STATUS","UNKNOWN_ENVELOPE","EMPTY_GET_RESPONSE","REQUEST_FAILED"].includes(row.errorCode) ? row.errorCode : "";
+  const error = ["WATCH_UI_UNCONFIRMED","POWER_WATCH_UI_WAIT","PREFLIGHT_FAILED","HTTP_ERROR","APPLICATION_ERROR","INVALID_JSON","BODY_READ_ERROR","NETWORK_ERROR","TIMEOUT","PENDING_OR_UNEXPECTED_STATUS","UNKNOWN_ENVELOPE","EMPTY_GET_RESPONSE","REQUEST_FAILED"].includes(row.errorCode) ? row.errorCode : "";
   const build = /^power-\d{8}\.\d+$/.test(row.build || "") ? row.build : "미기록";
   return `HTTP ${http} · 응답 코드 ${code}${error ? ` · ${error}` : ""} · 요청 실행 ${build}`;
 }

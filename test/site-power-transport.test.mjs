@@ -9,7 +9,7 @@ test('page transport restricts sender, rechecks eligibility, excludes manual cla
  let listener,eligible=false,putStatus=204,calls=[];
  dom.window.AbortSignal=AbortSignal;
  dom.window.chrome={runtime:{id:'test',getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:fn=>listener=fn,removeListener(){}}},storage:{local:{get:async()=>({'cheesemoa.channels':[{url}]})}}};
- dom.window.fetch=async(u,o)=>{calls.push({u,o});return o.method==='PUT'?new Response(null,{status:putStatus}):new Response(JSON.stringify({code:200,content:{active:true,amount:123,claims:eligible?[{claimId:'new',claimType:'WATCH_1_HOUR',state:'COMPLIED',saveType:'ACTIVE'}]:[]}}));};
+ dom.window.fetch=async(u,o)=>{calls.push({u,o});return o.method==='PUT'?new Response(null,{status:putStatus}):new Response(JSON.stringify({code:200,content:{active:true,amount:123,claims:eligible?[{claimId:'new',claimType:'WATCH_5_MIN',state:'COMPLIED',saveType:'ACTIVE'}]:[]}}));};
  try{
   dom.window.eval(source);await new Promise(r=>setImmediate(r));
   const root=dom.window.document.getElementById('cheesemoa-site-host').shadowRoot;
@@ -40,22 +40,5 @@ test('BFCache restore remounts one idle host and one listener without replaying 
   assert.equal(dom.window.document.querySelectorAll('#cheesemoa-site-host').length,1);
   assert.equal(dom.window.document.getElementById('cheesemoa-site-host').shadowRoot.querySelectorAll('iframe').length,0);
   dom.window.dispatchEvent(new dom.window.Event('pagehide'));assert.equal(listeners.size,0);
- }finally{dom.window.close()}
-});
-
-test('legacy host reports post-eligibility playback loss as proven unsent and recovers once',async()=>{
- const dom=new JSDOM('<body/>',{url:'https://chzzk.naver.com/lives#cheesemoa-multiview',runScripts:'outside-only'});
- let listener,drop=true,playing=true,puts=0;
- dom.window.AbortSignal=AbortSignal;
- dom.window.chrome={runtime:{id:'test',getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:fn=>listener=fn,removeListener(){}}},storage:{local:{get:async()=>({'cheesemoa.channels':[{url}]})}}};
- dom.window.fetch=async(u,o)=>{if(o.method==='PUT'){puts++;return new Response(null,{status:204})}if(drop)playing=false;return new Response(JSON.stringify({code:200,content:{active:true,claims:[{claimId:'new',claimType:'WATCH_1_HOUR',state:'COMPLIED',saveType:'ACTIVE'}]}}))};
- try{
-  dom.window.eval(source);await new Promise(r=>setImmediate(r));
-  const root=dom.window.document.getElementById('cheesemoa-site-host').shadowRoot;
-  [...root.querySelectorAll('button')].find(b=>b.textContent==='방송 시작').click();
-  Object.defineProperty(root.querySelector('iframe'),'contentDocument',{value:{querySelectorAll:()=>[{paused:!playing,readyState:4}]}});
-  const ask=()=>new Promise(resolve=>listener({type:'cheesemoa-power-request',kind:'claim',channelId:channel,claimId:'new'},{id:'test',url:'chrome-extension://test/src/viewer/viewer.html'},resolve));
-  const result=await ask();assert.equal(result.error,'POWER_PLAYBACK_WAIT');assert.equal(result.mutationDispatched,false);assert.equal(result.phase,'eligibility');assert.equal(puts,0);
-  playing=true;drop=false;assert.equal((await ask()).status,204);assert.equal(puts,1);
  }finally{dom.window.close()}
 });

@@ -5,7 +5,7 @@ import {createPowerCollector,POWER_STORAGE_KEY} from '../src/shared/power-collec
 import {POWER_BUILD} from '../src/shared/power-build.js';
 import {formatPowerDiagnostic} from '../src/shared/power-summary.js';
 const channel='a'.repeat(32),account='b'.repeat(64);
-const reward={claimId:'one',claimType:'WATCH_1_HOUR',state:'COMPLIED',saveType:'ACTIVE',amount:120};
+const reward={claimId:'one',claimType:'WATCH_5_MIN',state:'COMPLIED',saveType:'ACTIVE',amount:120};
 const claim=(response)=>claimAvailableReward(channel,reward,async()=>response,()=>99);
 for(const status of [200,201,204,205]) test(`PUT ${status} empty success is distinct from GET's required JSON`,async()=>{
  const r=await claim(new Response(null,{status}));assert.equal(r.httpStatus,status);assert.equal(r.amount,120);
@@ -44,7 +44,7 @@ test('failed post-read does not erase a confirmed empty-HTTP receipt or fabricat
 test('failure saves only safe diagnostics and old uncertain keys survive a new build without PUT',async()=>{
  const h=harness();h.put=()=>new Response(JSON.stringify({code:403,message:'cookie=SECRET',token:'SECRET'}),{status:403});
  await assert.rejects(h.make().collect(channel,{enabled:true,accountId:account}));
- const s=h.data[POWER_STORAGE_KEY],a=s.attempts[0];assert.equal(a.claimType,'WATCH_1_HOUR');assert.equal(a.httpStatus,403);assert.equal(a.applicationCode,403);assert.equal(a.errorCode,'HTTP_ERROR');assert.equal(a.build,POWER_BUILD);assert.equal(a.failedAt,1234);assert.equal(s.receipts.length,0);assert.ok(!JSON.stringify(s).includes('SECRET'));
+ const s=h.data[POWER_STORAGE_KEY],a=s.attempts[0];assert.equal(a.claimType,'WATCH_5_MIN');assert.equal(a.httpStatus,403);assert.equal(a.applicationCode,403);assert.equal(a.errorCode,'HTTP_ERROR');assert.equal(a.build,POWER_BUILD);assert.equal(a.failedAt,1234);assert.equal(s.receipts.length,0);assert.ok(!JSON.stringify(s).includes('SECRET'));
  const legacy={...a};delete legacy.claimType;delete legacy.httpStatus;delete legacy.applicationCode;delete legacy.errorCode;delete legacy.build;delete legacy.failedAt;
  const reopened=harness({[POWER_STORAGE_KEY]:{version:1,receipts:[],attempts:[legacy]}});
  await reopened.make().collect(channel,{enabled:true,accountId:account});assert.equal(reopened.puts,0);assert.deepEqual(reopened.data[POWER_STORAGE_KEY].attempts,[legacy]);

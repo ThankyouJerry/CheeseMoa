@@ -3,7 +3,7 @@
 "use strict";
 
 // src/shared/power-build.js
-const POWER_BUILD = "power-20261017.10";
+const POWER_BUILD = "power-20261026.2";
 
 
 // src/shared/log-power.js
@@ -143,6 +143,9 @@ async function claimAvailableReward(channelId, reward, fetcher = fetch, now = Da
   const path = channelPath(channelId);
   const eligible = normalizeReward(reward);
   if (!eligible) throw new Error("Only server-confirmed available rewards may be collected");
+  if (eligible.claimType === 'WATCH_1_HOUR') throw Object.assign(
+    new Error('1시간 보상은 공식 받기 UI에서 확인합니다.'),
+    {code:'WATCH_UI_REQUIRED', method:'GET', mutationDispatched:false, retryable:false});
   const response = await requestPowerMutation(`${path}/claims/${encodeURIComponent(eligible.claimId)}`, fetcher);
   return {...response, channelId, claimId: eligible.claimId, claimType: eligible.claimType,
     kind: eligible.claimType.startsWith("WATCH_") ? "watch" : "reward", confirmedAt: now(),
@@ -223,9 +226,10 @@ function createPowerSession({ collector, getChannels, checkAccount, onStatus,
       if (generation !== epoch) return;
       // A local GET preflight can wait for playback without consuming HTTP retries.
       // This never applies to PUT or an unknown/dispatched mutation.
-      if(error.code==='POWER_PLAYBACK_WAIT'&&error.method==='GET'&&error.mutationDispatched===false){
+      if(['POWER_PLAYBACK_WAIT','POWER_WATCH_UI_WAIT'].includes(error.code)&&error.method==='GET'&&error.mutationDispatched===false){
         delay=15000;retryAt=now()+delay;
-        publish('playback-wait',`${error.collectionResult?.collected ? `${error.collectionResult.collected}건 수령 확인 · 보유량 조회 대기. ` : ''}재생 준비를 기다립니다. 15초 간격으로 로컬 재생 상태만 확인하며, 준비되기 전에는 보상 요청을 보내지 않습니다. ON 설정은 유지됩니다.`,error.collectionResult);
+        const waiting=error.code==='POWER_WATCH_UI_WAIT';
+        publish(waiting?'watch-ui-wait':'playback-wait',`${error.collectionResult?.collected ? `${error.collectionResult.collected}건 수령 확인 · 보유량 조회 대기. ` : ''}${waiting?'1시간 보상은 공식 받기 버튼이 보일 때 처리합니다. 채팅 패널을 열어 주세요. 버튼이 없거나 여러 개면 클릭하지 않고 15초 뒤 다시 확인합니다.':'재생 준비를 기다립니다. 15초 간격으로 로컬 재생 상태만 확인하며, 준비되기 전에는 보상 요청을 보내지 않습니다.'} ON 설정은 유지됩니다.`,error.collectionResult);
         return;
       }
       if (Number.isInteger(error.failures)) failures = Math.max(0, error.failures - (error.code === "POWER_BACKOFF" ? 0 : 1));
@@ -238,12 +242,13 @@ function createPowerSession({ collector, getChannels, checkAccount, onStatus,
       } else {
         enabled = false; generation++; cancel(timer); timer = undefined; retryAt = 0;
         const auth = error.code === "LOGGED_OUT" || error.status === 401;
-        const detail = error.code === "POWER_ATTEMPT_LIMIT" ?
+        const detail = error.code === 'WATCH_UI_UNCONFIRMED' ?
+          '공식 받기 버튼을 처리했지만 보상 상태와 보유량 변화가 함께 확인되지 않았습니다. 성공으로 기록하지 않았고 같은 보상은 자동으로 다시 클릭하지 않습니다.' : error.code === "POWER_ATTEMPT_LIMIT" ?
           "중복 방지 기록 2,000건 한도에 도달하여 자동수령을 중단했습니다. 기존 수령·미확인 기록은 보존되며 새 수령 요청은 보내지 않습니다. 기록을 지워 재시도하지 마세요." :
           ["MAIN_CHANNEL_REQUIRED", "POWER_HOST_REQUIRED", "POWER_LOCK_TIMEOUT"].includes(error.code) ? `${error.message}${failures > 5 ? " 연결 조회 재시도 한도에 도달하여 중단했습니다." : ""}` : error.code === "ACCOUNT_CHANGED" ?
           "계정 변경 또는 로그아웃이 감지되어 중단했습니다. 미확인 요청은 자동 재시도하지 않습니다." : auth ?
           "로그인 세션을 확인하지 못해 중단했습니다. 로그인 후 직접 다시 켜주세요." :
-          error.status === 403 ? "보상 요청이 거부되어 중단했습니다. 자격이나 접근 상태를 직접 확인해주세요." :
+          error.status === 403 ? "계정 또는 보상 조회가 거부되어 중단했습니다. 1시간 보상은 API로 직접 수령하지 않습니다. 접근 상태를 확인한 뒤 직접 ON을 눌러주세요. 기존 미확인 보상은 재전송하지 않습니다." :
           error.status === 409 ? "이미 처리된 보상 응답으로 중단했습니다. 이 앱의 획득 성공으로 기록하지 않았습니다." :
           error.status === 429 ? "요청 제한으로 중단했습니다. 미확인 수령 요청은 자동 재시도하지 않습니다." :
           error.name === "TimeoutError" && error.method !== "GET" ? "요청 시간이 초과되어 중단했습니다. 수령 여부가 불명확한 요청은 자동 재시도하지 않습니다." :
@@ -325,9 +330,80 @@ function createPagePowerOwner({send,getChannelId,onState,schedule=setTimeout,can
 }
 
 
+// src/shared/watch-ui-claim.js
+
+// Only the official hourly reward in the selected channel's chat may be clicked.
+// No claim PUT, header changes, cookie access or guessed completion timestamps.
+function findWatchRewardButton(doc) {
+  const chat = doc?.querySelector('aside#aside-chatting');
+  if (!chat) return null;
+  const candidates = [...chat.querySelectorAll('button')].filter(button => {
+    if (button.disabled || button.getAttribute('aria-disabled') === 'true' || !button.getClientRects().length) return false;
+    for (let node = button; node; node = node.parentElement) {
+      if (node.hidden || node.inert || node.getAttribute('aria-hidden') === 'true') return false;
+      const style = doc.defaultView?.getComputedStyle(node);
+      if (style && (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0')) return false;
+    }
+    const text = `${button.textContent || ''} ${button.getAttribute('aria-label') || ''} ${button.title || ''}`;
+    const hourlyLabel = /1\s*시간/.test(text) && /통나무|파워/.test(text);
+    if (!/받기|수령/.test(text) || /5\s*분|후원|구독|팔로|선물/.test(text) ||
+        (/배달/.test(text) && !hourlyLabel)) return false;
+    const knownHourlyClass = /live_chatting_power_button__/.test(button.className || '');
+    const markedPower = /_power_button_/.test(button.className || '') && /통나무|파워/.test(text);
+    return knownHourlyClass || markedPower || hourlyLabel;
+  });
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
+async function collectWatchUiReward({channelId, claimId, getDocument, isPlaying,
+  isEnabled, fetcher = fetch, now = Date.now, wait = ms => new Promise(resolve => setTimeout(resolve, ms))}) {
+  let clicked = false;
+  const failure = (code, status = 0) => Object.assign(new Error(code), {
+    code, errorCode: code, status, method: clicked ? 'UI' : 'GET',
+    retryable: !clicked && status === 0, mutationDispatched: clicked,
+    phase: clicked ? 'mutation' : 'eligibility',
+  });
+  const readyDocument = () => {
+    const doc = getDocument?.(channelId);
+    return isEnabled?.(channelId) && isPlaying(channelId) &&
+      doc?.URL === `https://chzzk.naver.com/live/${channelId}` ? doc : null;
+  };
+  if (!readyDocument()) throw failure('POWER_WATCH_UI_WAIT');
+  const before = await readLogPower(channelId, fetcher);
+  const reward = before.claims.find(c => c.claimId === claimId && c.claimType === 'WATCH_1_HOUR');
+  if (!before.active || !reward) throw failure('WATCH_ALREADY_UNAVAILABLE', 409);
+  const doc = readyDocument();
+  const button = doc && findWatchRewardButton(doc);
+  if (!button) throw failure('POWER_WATCH_UI_WAIT');
+  // Reserve the uncertainty boundary before dispatch; a thrown click may still act.
+  clicked = true;
+  try {
+    button.click();
+    for (let check = 0; check < 3; check++) {
+      await wait(1000);
+      // Never attribute a receipt after the owning document/channel is lost.
+      if (!readyDocument()) throw failure('WATCH_UI_UNCONFIRMED');
+      const after = await readLogPower(channelId, fetcher);
+      const noLongerAvailable = !after.claims.some(c => c.claimId === claimId);
+      const expected = Number.isSafeInteger(reward.amount) && reward.amount > 0 ? reward.amount : 1;
+      if (after.active && noLongerAvailable && after.balance - before.balance >= expected) {
+        return {channelId, claimId, claimType: 'WATCH_1_HOUR', kind: 'watch',
+          confirmedAt: now(), amount: reward.amount, amountSource: reward.amount === null ? 'unknown' : 'offered-reward',
+          httpStatus: null, applicationCode: null, collectionMethod: 'official-ui',
+          confirmation: 'claim-and-balance', balanceBefore: before.balance, balanceAfter: after.balance};
+      }
+    }
+  } catch (error) {
+    // Even a failed follow-up GET does not prove that the click failed.
+    throw failure('WATCH_UI_UNCONFIRMED');
+  }
+  throw failure('WATCH_UI_UNCONFIRMED');
+}
+
+
 // src/shared/power-page-agent.js
 // Runs only in the normal logged-in CHZZK page. No cookies/tokens are extracted.
-function createPagePowerAgent({isPlaying,fetcher=fetch}) {
+function createPagePowerAgent({isPlaying,getDocument,isEnabled,fetcher=fetch}) {
   const send=async(url,method='GET')=>fetcher(url,{method,credentials:'include',cache:'no-store',signal:AbortSignal.timeout(8000)});
   return async function handle(request){
     const id=request.channelId;
@@ -338,6 +414,10 @@ function createPagePowerAgent({isPlaying,fetcher=fetch}) {
       // Account identity is freshly verified even if playback stopped after PUT.
       // Balance and claim requests remain gated on the selected player's state.
       if(!(request.kind==='account'&&request.postMutationIdentity===true)&&!isPlaying(id))return {build:POWER_BUILD,status:0,error:'POWER_PLAYBACK_WAIT',mutationDispatched:false,phase:'eligibility'};
+      if(request.kind==='watch-ui'&&typeof request.claimId==='string'&&request.claimId.length>0&&request.claimId.length<=200){
+        const receipt=await collectWatchUiReward({channelId:id,claimId:request.claimId,getDocument,isPlaying,isEnabled,fetcher});
+        return {build:POWER_BUILD,kind:'confirmed',receipt};
+      }
       const base=`https://api.chzzk.naver.com/service/v1/channels/${id}/log-power`;
       let url,method='GET';
       if(request.kind==='account')url='https://comm-api.game.naver.com/nng_main/v1/user/getUserStatus';
@@ -349,6 +429,7 @@ function createPagePowerAgent({isPlaying,fetcher=fetch}) {
         if(data?.code!==200||data.content?.active!==true||!Array.isArray(data.content.claims))throw new Error('INVALID_ELIGIBILITY');
         const claim=data.content.claims.find(c=>String(c?.claimId)===request.claimId&&c.state==='COMPLIED'&&c.saveType==='ACTIVE'&&Object.hasOwn(REWARD_TYPES,c.claimType));
         if(!claim)return {build:POWER_BUILD,status:409,body:'',phase:'eligibility',mutationDispatched:false};
+        if(claim.claimType==='WATCH_1_HOUR')return {build:POWER_BUILD,status:422,error:'WATCH_UI_REQUIRED',mutationDispatched:false,phase:'eligibility',schema:true};
         if(!isPlaying(id))return {build:POWER_BUILD,status:0,error:'POWER_PLAYBACK_WAIT',mutationDispatched:false,phase:'eligibility'};
         url=`${base}/claims/${encodeURIComponent(request.claimId)}`;method='PUT';
       }else throw new Error('UNSUPPORTED_REQUEST');
@@ -357,7 +438,15 @@ function createPagePowerAgent({isPlaying,fetcher=fetch}) {
       if(body.length>262144)throw new Error('RESPONSE_TOO_LARGE');
       if(request.kind==='account'){if(response.ok){const data=JSON.parse(body);body=JSON.stringify({code:data?.code,content:{loggedIn:data?.content?.loggedIn,userIdHash:data?.content?.userIdHash}})}else body=''}
       return {build:POWER_BUILD,status:response.status,body,retryAfter:response.headers.get('Retry-After')||''};
-    }catch(error){return {build:POWER_BUILD,status:0,error:'POWER_TRANSPORT_FAILED',mutationDispatched,phase:mutationDispatched?'mutation':'eligibility',timeout:error?.name==='TimeoutError',schema:['INVALID_CHANNEL','INVALID_ELIGIBILITY','UNSUPPORTED_REQUEST'].includes(error?.message)}}
+    }catch(error){
+      const dispatched=mutationDispatched||error.mutationDispatched===true;
+      const safeCode=['POWER_WATCH_UI_WAIT','WATCH_UI_UNCONFIRMED','WATCH_ALREADY_UNAVAILABLE'].includes(error.code)?error.code:'POWER_TRANSPORT_FAILED';
+      return {build:POWER_BUILD,status:Number.isInteger(error.status)?error.status:0,error:safeCode,
+        mutationDispatched:dispatched,phase:dispatched?'mutation':'eligibility',
+        httpStatus:error.httpStatus,applicationCode:error.applicationCode,
+        retryAfterMs:Number.isFinite(error.retryAfterMs)&&error.retryAfterMs>=0?error.retryAfterMs:0,
+        timeout:error?.name==='TimeoutError',schema:error.status==='schema'||['INVALID_CHANNEL','INVALID_ELIGIBILITY','UNSUPPORTED_REQUEST'].includes(error?.message)};
+    }
   };
 }
 
@@ -448,12 +537,15 @@ function attachPowerReceiptPanel({section,document}) {
   let latest=-Infinity;
   return {update(value,channelName) {
     const r=value.result?.latestReceipt;
+    const ui=r?.collectionMethod==='official-ui'&&r.confirmation==='claim-and-balance'&&
+      Number.isSafeInteger(r.balanceBefore)&&r.balanceBefore>=0&&Number.isSafeInteger(r.balanceAfter)&&r.balanceAfter>r.balanceBefore;
     if (!value.result?.collected || !r || !Number.isFinite(r.confirmedAt) ||
-        r.confirmedAt < latest || ![200,201,204,205].includes(r.httpStatus) ||
+        r.confirmedAt < latest || (!ui&&![200,201,204,205].includes(r.httpStatus)) ||
         (r.applicationCode !== null && r.applicationCode !== 200)) return;
     latest=r.confirmedAt;
     const amount=Number.isSafeInteger(r.amount)&&r.amount>=0?`제공 보상량 +${r.amount}`:'제공 보상량 미확인';
-    receipt.textContent=`이 페이지의 최근 서버 수령 확인 · ${channelName} · ${new Date(r.confirmedAt).toLocaleString('ko-KR')} (로컬 확인 시각) · ${amount} · HTTP ${r.httpStatus} / 응답 코드 ${r.applicationCode??'본문 없음'}. 저장된 영수증 기준이며 현재 계정·잔액 또는 공식 받기 버튼의 갱신을 뜻하지 않습니다.`;
+    receipt.textContent=ui?`이 페이지의 최근 서버 수령 확인 · ${channelName} · ${new Date(r.confirmedAt).toLocaleString('ko-KR')} (로컬 확인 시각) · ${amount} · 공식 받기 UI 후 해당 보상 상태·보유량 재조회 확인 (${r.balanceBefore} → ${r.balanceAfter}). 현재 실시간 잔액은 별도입니다.`:
+      `이 페이지의 최근 서버 수령 확인 · ${channelName} · ${new Date(r.confirmedAt).toLocaleString('ko-KR')} (로컬 확인 시각) · ${amount} · HTTP ${r.httpStatus} / 응답 코드 ${r.applicationCode??'본문 없음'}. 저장된 영수증 기준이며 현재 계정·잔액 또는 공식 받기 버튼의 갱신을 뜻하지 않습니다.`;
   }};
 }
 
@@ -500,14 +592,15 @@ if(window===window.top&&location.origin==='https://chzzk.naver.com'&&
   })}
   const owner=createPagePowerOwner({send:message,getChannelId:()=>select.value,onState(value){
    enabled=value.enabled===true;select.disabled=enabled;on.disabled=enabled||!select.value;off.disabled=!enabled&&!value.canStop;
-   const names={'playback-wait':'재생 대기',checking:'확인 중',checked:'응답 확인',inactive:'보상 비활성',blocked:'이전 미확인 보상 보존',waiting:'재조회 대기',error:'중단',off:'꺼짐','auth-required':'로그인 확인 필요',connecting:'시작 연결 중'};
+   const names={'watch-ui-wait':'공식 받기 버튼 대기','playback-wait':'재생 대기',checking:'확인 중',checked:'응답 확인',inactive:'보상 비활성',blocked:'이전 미확인 보상 보존',waiting:'재조회 대기',error:'중단',off:'꺼짐','auth-required':'로그인 확인 필요',connecting:'시작 연결 중'};
    state.textContent=`${enabled?'ON':'OFF'} · ${names[value.status]||'상태 확인 중'}`;detail.textContent=value.detail||'서버의 적격 보상만 확인합니다.';
    if(['checked','blocked','inactive'].includes(value.status))lastCheck=Date.now();
    confirmed+=value.result?.collected||0;
    receiptPanel.update(value,select.selectedOptions[0]?.textContent||'선택 방송');
    counts.textContent=`이 실행의 확정 수령 ${confirmed}건 · 최근 조회 ${lastCheck?new Date(lastCheck).toLocaleTimeString('ko-KR'):'없음'}${['waiting','error','auth-required'].includes(value.status)?' · 최신 조회 미확인':''}`;
   }});
-  const agent=createPagePowerAgent({isPlaying:playing});
+  const agent=createPagePowerAgent({isPlaying:playing,isEnabled:channel=>enabled&&select.value===channel,
+   getDocument:channel=>{try{return location.pathname===`/live/${channel}`?document:frames().find(f=>f.src===`https://chzzk.naver.com/live/${channel}`)?.contentDocument}catch{return null}}});
   const listener=(message,sender,respond)=>{
    if(sender.id!==chrome.runtime.id||(sender.url&&!sender.url.startsWith(chrome.runtime.getURL(''))))return;
    if(message?.type==='cheesemoa-owner-state'){owner.deactivate(message.epoch);return;}

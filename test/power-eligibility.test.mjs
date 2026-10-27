@@ -4,7 +4,7 @@ import {readLogPower, claimAvailableReward, PowerRequestError, REWARD_TYPES} fro
 import {createPowerCollector, POWER_STORAGE_KEY} from "../src/shared/power-collector.js";
 import {createPowerSession} from "../src/shared/power-session.js";
 const channel = "a".repeat(32), account = "b".repeat(64);
-const reward = {claimId: "one", claimType: "WATCH_1_HOUR", state: "COMPLIED", saveType: "ACTIVE", amount: 120};
+const reward = {claimId: "one", claimType: "WATCH_5_MIN", state: "COMPLIED", saveType: "ACTIVE", amount: 120};
 const response = content => ({ok: true, json: async () => ({code: 200, content})});
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
@@ -18,11 +18,15 @@ test("only explicitly available known rewards can be claimed; no passive, unknow
   let puts = 0;
   for (const r of rejected) await assert.rejects(claimAvailableReward(channel,r, () => {puts++;}));
   for (const r of read.claims) {
+    if(r.claimType==='WATCH_1_HOUR'){
+      await assert.rejects(claimAvailableReward(channel,r,()=>{puts++;}),e=>e.code==='WATCH_UI_REQUIRED');
+      continue;
+    }
     const receipt = await claimAvailableReward(channel,r, async (_,o) => {assert.equal(o.method,"PUT"); puts++; return response(null);});
     assert.equal(receipt.claimType,r.claimType);
     assert.equal(receipt.amount,120);
   }
-  assert.equal(puts, eligible.length);
+  assert.equal(puts, eligible.length-1);
 });
 test("numeric IDs normalize but malformed or unconfirmed amounts are not guessed", async () => {
   const read = await readLogPower(channel, async () => response({amount: 0,active:true,claims:[{...reward,claimId:123,amount:undefined}]}));

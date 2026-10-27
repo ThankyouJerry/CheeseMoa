@@ -13,7 +13,7 @@ for(const point of ['after-pending','after-put','before-receipt'])test(`coordina
    if(point==='after-put'&&!crashed){const response=new Promise(resolve=>releasePut=()=>resolve(new Response(null,{status:204})));killCoordinator();return response}
    return new Response(null,{status:204});
   }
-  return new Response(JSON.stringify({code:200,content:url.includes('getUserStatus')?{loggedIn:true,userIdHash:'surviving_page_account'}:{active:true,amount:100,claims:[{claimId:'persistent-claim',claimType:'WATCH_1_HOUR',state:'COMPLIED',saveType:'ACTIVE',amount:10}]}}));
+  return new Response(JSON.stringify({code:200,content:url.includes('getUserStatus')?{loggedIn:true,userIdHash:'surviving_page_account'}:{active:true,amount:100,claims:[{claimId:'persistent-claim',claimType:'WATCH_5_MIN',state:'COMPLIED',saveType:'ACTIVE',amount:10}]}}));
  }});
  function release(name,w){if(held.get(name)!==w)return;held.delete(name);const queue=queues.get(name)||[];while(queue.length){const next=queue.shift();if(workers.has(next.w)){held.set(name,next.w);next.reply(null);break}}}
  function launch(restore){return new Promise((resolve,reject)=>{

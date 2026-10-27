@@ -134,6 +134,9 @@ export async function claimAvailableReward(channelId, reward, fetcher = fetch, n
   const path = channelPath(channelId);
   const eligible = normalizeReward(reward);
   if (!eligible) throw new Error("Only server-confirmed available rewards may be collected");
+  if (eligible.claimType === 'WATCH_1_HOUR') throw Object.assign(
+    new Error('1시간 보상은 공식 받기 UI에서 확인합니다.'),
+    {code:'WATCH_UI_REQUIRED', method:'GET', mutationDispatched:false, retryable:false});
   const response = await requestPowerMutation(`${path}/claims/${encodeURIComponent(eligible.claimId)}`, fetcher);
   return {...response, channelId, claimId: eligible.claimId, claimType: eligible.claimType,
     kind: eligible.claimType.startsWith("WATCH_") ? "watch" : "reward", confirmedAt: now(),

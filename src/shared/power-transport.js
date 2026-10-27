@@ -10,14 +10,14 @@ export function createPowerTransport({chromeApi = chrome, getChannelId,
   let tabId = null;
   // A suspended/disconnected receiver may never settle a Chrome message promise.
   // This only bounds waiting; it cannot cancel or replay a dispatched mutation.
-  async function bounded(operation) {
+  async function bounded(operation, timeoutMs=messageTimeoutMs) {
     let timer;
     try {
       return await Promise.race([
         Promise.resolve().then(operation),
         new Promise((_, reject) => {
           timer = schedule(() => reject(Object.assign(
-            new Error('치지직 연결 응답 시간이 초과되었습니다.'), {name:'TimeoutError'})), messageTimeoutMs);
+            new Error('치지직 연결 응답 시간이 초과되었습니다.'), {name:'TimeoutError'})), timeoutMs);
         }),
       ]);
     } finally { cancel(timer); }
@@ -69,6 +69,36 @@ export function createPowerTransport({chromeApi = chrome, getChannelId,
     throw hostError(reason, method);
   }
   return {
+    async collectWatchReward(channelId, reward) {
+      if (!targetContext || channelId !== getChannelId() || reward?.claimType !== 'WATCH_1_HOUR')
+        throw Object.assign(new Error('공식 보상 UI를 연결하지 못했습니다.'),
+          {code:'POWER_WATCH_UI_WAIT',method:'GET',status:0,retryable:true,mutationDispatched:false});
+      const id=await target(channelId,'GET');
+      let result;
+      try {
+        result=await bounded(()=>chromeApi.tabs.sendMessage(id,{type:'cheesemoa-page-network',kind:'watch-ui',
+          channelId,claimId:reward.claimId},{documentId:targetContext.documentId}),45000);
+      } catch {
+        throw Object.assign(new Error('공식 버튼 수령 결과를 확인하지 못했습니다.'),
+          {code:'WATCH_UI_UNCONFIRMED',method:'UI',status:0,retryable:false,mutationDispatched:true});
+      }
+      const r=result?.receipt;
+      const expected=Number.isSafeInteger(reward.amount)&&reward.amount>0?reward.amount:1;
+      if(result?.build===protocol&&result.kind==='confirmed'&&r?.collectionMethod==='official-ui'&&
+        r.confirmation==='claim-and-balance'&&r.channelId===channelId&&r.claimId===reward.claimId&&
+        r.claimType==='WATCH_1_HOUR'&&Number.isFinite(r.confirmedAt)&&
+        Number.isSafeInteger(r.balanceBefore)&&r.balanceBefore>=0&&Number.isSafeInteger(r.balanceAfter)&&
+        r.balanceAfter-r.balanceBefore>=expected) return {...r,amount:reward.amount,amountSource:reward.amount===null?'unknown':'offered-reward'};
+      const unsent=result?.build===protocol&&result.mutationDispatched===false&&result.phase==='eligibility';
+      const wait=unsent&&result.error==='POWER_WATCH_UI_WAIT';
+      const status=unsent&&Number.isInteger(result.status)?result.status:0;
+      throw Object.assign(new PowerRequestError(status,{method:unsent?'GET':'UI',
+        httpStatus:result?.httpStatus??(status>=100?status:null),applicationCode:result?.applicationCode??null,
+        schema:result?.schema===true,retryAfterMs:Number.isFinite(result?.retryAfterMs)?Math.max(0,result.retryAfterMs):0,
+        errorCode:wait?'POWER_WATCH_UI_WAIT':unsent?'PREFLIGHT_FAILED':'WATCH_UI_UNCONFIRMED'}),
+        {code:wait?'POWER_WATCH_UI_WAIT':unsent?'WATCH_UI_PREFLIGHT_FAILED':'WATCH_UI_UNCONFIRMED',
+          mutationDispatched:!unsent,phase:unsent?'eligibility':'mutation'});
+    },
     async fetcher(url, options={}) {
       const channelId=getChannelId();
       if (!/^[a-f0-9]{32}$/i.test(channelId||'')) throw new Error('주 채널을 선택하세요.');

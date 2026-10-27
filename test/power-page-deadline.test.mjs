@@ -10,7 +10,7 @@ for(const method of ['GET','PUT'])test(`real page adapter deadline bounds never-
  const timers=new Map();let seq=0,requests=0;
  const chromeApi={tabs:{sendMessage:async(_,m)=>{if(m.kind==='probe')return {build:POWER_BUILD,playing:true};requests++;return new Promise(()=>{})}}};
  const transport=createPowerTransport({chromeApi,getChannelId:()=>channel,targetContext:{tabId:1,documentId:'doc'},protocol:POWER_BUILD,schedule:fn=>{timers.set(++seq,fn);return seq},cancel:id=>timers.delete(id)});
- const promise=method==='GET'?readLogPower(channel,transport.fetcher):claimAvailableReward(channel,{claimId:'one',claimType:'WATCH_1_HOUR',state:'COMPLIED',saveType:'ACTIVE'},transport.fetcher);
+ const promise=method==='GET'?readLogPower(channel,transport.fetcher):claimAvailableReward(channel,{claimId:'one',claimType:'WATCH_5_MIN',state:'COMPLIED',saveType:'ACTIVE'},transport.fetcher);
  const assertion=assert.rejects(promise,e=>e.name==='TimeoutError'&&e.method===method&&e.retryable===(method==='GET')&&e.mutationDispatched!==false);
  await flushRuntime();assert.equal(requests,1);assert.equal(timers.size,1);[...timers.values()][0]();await assertion;
 });

@@ -33,7 +33,7 @@ test('hung PUT remains unconfirmed/nonretryable and is dispatched once',async()=
 test('late PUT success after bridge timeout stays unconfirmed and cannot be sent twice',async()=>{
  const {createPowerCollector}=await import('../src/shared/power-collector.js');
  let state,lateReply,timerId=0;const timers=new Map(),requests=[];
- const content={active:true,amount:42,claims:[{claimId:'new',claimType:'WATCH_1_HOUR',state:'COMPLIED',saveType:'ACTIVE',amount:10}]};
+ const content={active:true,amount:42,claims:[{claimId:'new',claimType:'WATCH_5_MIN',state:'COMPLIED',saveType:'ACTIVE',amount:10}]};
  const chromeApi={tabs:{query:async()=>[{id:1,url:host}],sendMessage:async(id,m)=>{
   if(m.type.endsWith('probe'))return {build:'power-20261011.7',playing:true};
   requests.push(m);

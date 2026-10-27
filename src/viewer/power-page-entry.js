@@ -41,14 +41,15 @@ if(window===window.top&&location.origin==='https://chzzk.naver.com'&&
   })}
   const owner=createPagePowerOwner({send:message,getChannelId:()=>select.value,onState(value){
    enabled=value.enabled===true;select.disabled=enabled;on.disabled=enabled||!select.value;off.disabled=!enabled&&!value.canStop;
-   const names={'playback-wait':'재생 대기',checking:'확인 중',checked:'응답 확인',inactive:'보상 비활성',blocked:'이전 미확인 보상 보존',waiting:'재조회 대기',error:'중단',off:'꺼짐','auth-required':'로그인 확인 필요',connecting:'시작 연결 중'};
+   const names={'watch-ui-wait':'공식 받기 버튼 대기','playback-wait':'재생 대기',checking:'확인 중',checked:'응답 확인',inactive:'보상 비활성',blocked:'이전 미확인 보상 보존',waiting:'재조회 대기',error:'중단',off:'꺼짐','auth-required':'로그인 확인 필요',connecting:'시작 연결 중'};
    state.textContent=`${enabled?'ON':'OFF'} · ${names[value.status]||'상태 확인 중'}`;detail.textContent=value.detail||'서버의 적격 보상만 확인합니다.';
    if(['checked','blocked','inactive'].includes(value.status))lastCheck=Date.now();
    confirmed+=value.result?.collected||0;
    receiptPanel.update(value,select.selectedOptions[0]?.textContent||'선택 방송');
    counts.textContent=`이 실행의 확정 수령 ${confirmed}건 · 최근 조회 ${lastCheck?new Date(lastCheck).toLocaleTimeString('ko-KR'):'없음'}${['waiting','error','auth-required'].includes(value.status)?' · 최신 조회 미확인':''}`;
   }});
-  const agent=createPagePowerAgent({isPlaying:playing});
+  const agent=createPagePowerAgent({isPlaying:playing,isEnabled:channel=>enabled&&select.value===channel,
+   getDocument:channel=>{try{return location.pathname===`/live/${channel}`?document:frames().find(f=>f.src===`https://chzzk.naver.com/live/${channel}`)?.contentDocument}catch{return null}}});
   const listener=(message,sender,respond)=>{
    if(sender.id!==chrome.runtime.id||(sender.url&&!sender.url.startsWith(chrome.runtime.getURL(''))))return;
    if(message?.type==='cheesemoa-owner-state'){owner.deactivate(message.epoch);return;}

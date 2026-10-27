@@ -4,7 +4,7 @@ import {readLogPower} from '../src/shared/log-power.js';
 import {createPowerCollector} from '../src/shared/power-collector.js';
 import {createPowerSession,describePowerDiagnostics} from '../src/shared/power-session.js';
 const channel='a'.repeat(32),account='b'.repeat(64);
-const reward={claimId:'private-claim',claimType:'WATCH_1_HOUR',state:'COMPLIED',saveType:'ACTIVE'};
+const reward={claimId:'private-claim',claimType:'WATCH_5_MIN',state:'COMPLIED',saveType:'ACTIVE'};
 const response=claims=>new Response(JSON.stringify({code:200,content:{amount:100,active:true,claims}}),{status:200});
 test('empty and filtered response diagnostics reconcile without raw strings',async()=>{
  const empty=await readLogPower(channel,async()=>response([]));assert.match(describePowerDiagnostics(empty.diagnostics),/빈 응답 목록/);

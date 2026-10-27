@@ -6,7 +6,7 @@ import {createPowerCollector,POWER_STORAGE_KEY} from '../src/shared/power-collec
 import {createPowerTransport} from '../src/shared/power-transport.js';
 import {createPowerSession} from '../src/shared/power-session.js';
 const channel='a'.repeat(32),account='b'.repeat(64),url='https://chzzk.naver.com/live/'+channel;
-const reward={claimId:'new',claimType:'WATCH_1_HOUR',state:'COMPLIED',saveType:'ACTIVE',amount:10};
+const reward={claimId:'new',claimType:'WATCH_5_MIN',state:'COMPLIED',saveType:'ACTIVE',amount:10};
 const power=()=>new Response(JSON.stringify({code:200,content:{active:true,amount:100,claims:[reward]}}));
 const options={enabled:true,accountId:account};
 const flush=()=>new Promise(r=>setImmediate(r));

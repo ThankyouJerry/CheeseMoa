@@ -8,7 +8,7 @@ const MAX_ATTEMPTS = 2000;
 const accountIsValid = id => typeof id === "string" && /^[a-f0-9]{64}$/.test(id);
 
 // All extension documents use the same origin-scoped lock, including history deletion.
-export function createPowerCollector({ storage, locks, fetcher = fetch, now = Date.now, schedule = setTimeout, cancel = clearTimeout, lockWaitMs = 15000 }) {
+export function createPowerCollector({ storage, locks, fetcher = fetch, watchCollector, now = Date.now, schedule = setTimeout, cancel = clearTimeout, lockWaitMs = 15000 }) {
   // Abort only acquisition. Never release an acquired lock while a claim is running.
   async function withLock(work, signal) {
     const controller = new AbortController();
@@ -125,7 +125,11 @@ export function createPowerCollector({ storage, locks, fetcher = fetch, now = Da
         }
         let receipt;
         try {
-          receipt = await claimAvailableReward(channelId, reward, fetcher, now);
+          if (reward.claimType === 'WATCH_1_HOUR') {
+            if (!watchCollector) throw Object.assign(new Error('공식 보상 UI 연결을 기다립니다.'),
+              {code:'POWER_WATCH_UI_WAIT', method:'GET', status:0, retryable:true, mutationDispatched:false});
+            receipt = await watchCollector(channelId, reward);
+          } else receipt = await claimAvailableReward(channelId, reward, fetcher, now);
         } catch (error) {
           if (error.status === 409) {
             // A conflict is not our receipt. Keep a durable guard for this reward
@@ -170,7 +174,9 @@ export function createPowerCollector({ storage, locks, fetcher = fetch, now = Da
         collected++;
         // Expose only a durable, validated receipt; never IDs or raw response text.
         latestReceipt = {confirmedAt: receipt.confirmedAt, amount: receipt.amount,
-          httpStatus: receipt.httpStatus, applicationCode: receipt.applicationCode};
+          httpStatus: receipt.httpStatus, applicationCode: receipt.applicationCode,
+          ...(receipt.collectionMethod==='official-ui'?{collectionMethod: receipt.collectionMethod, confirmation: receipt.confirmation,
+          balanceBefore: receipt.balanceBefore, balanceAfter: receipt.balanceAfter}:{})};
       }
       if (!collected) {
         await save(state);

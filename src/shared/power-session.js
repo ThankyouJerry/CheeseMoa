@@ -65,9 +65,10 @@ export function createPowerSession({ collector, getChannels, checkAccount, onSta
       if (generation !== epoch) return;
       // A local GET preflight can wait for playback without consuming HTTP retries.
       // This never applies to PUT or an unknown/dispatched mutation.
-      if(error.code==='POWER_PLAYBACK_WAIT'&&error.method==='GET'&&error.mutationDispatched===false){
+      if(['POWER_PLAYBACK_WAIT','POWER_WATCH_UI_WAIT'].includes(error.code)&&error.method==='GET'&&error.mutationDispatched===false){
         delay=15000;retryAt=now()+delay;
-        publish('playback-wait',`${error.collectionResult?.collected ? `${error.collectionResult.collected}건 수령 확인 · 보유량 조회 대기. ` : ''}재생 준비를 기다립니다. 15초 간격으로 로컬 재생 상태만 확인하며, 준비되기 전에는 보상 요청을 보내지 않습니다. ON 설정은 유지됩니다.`,error.collectionResult);
+        const waiting=error.code==='POWER_WATCH_UI_WAIT';
+        publish(waiting?'watch-ui-wait':'playback-wait',`${error.collectionResult?.collected ? `${error.collectionResult.collected}건 수령 확인 · 보유량 조회 대기. ` : ''}${waiting?'1시간 보상은 공식 받기 버튼이 보일 때 처리합니다. 채팅 패널을 열어 주세요. 버튼이 없거나 여러 개면 클릭하지 않고 15초 뒤 다시 확인합니다.':'재생 준비를 기다립니다. 15초 간격으로 로컬 재생 상태만 확인하며, 준비되기 전에는 보상 요청을 보내지 않습니다.'} ON 설정은 유지됩니다.`,error.collectionResult);
         return;
       }
       if (Number.isInteger(error.failures)) failures = Math.max(0, error.failures - (error.code === "POWER_BACKOFF" ? 0 : 1));
@@ -80,12 +81,13 @@ export function createPowerSession({ collector, getChannels, checkAccount, onSta
       } else {
         enabled = false; generation++; cancel(timer); timer = undefined; retryAt = 0;
         const auth = error.code === "LOGGED_OUT" || error.status === 401;
-        const detail = error.code === "POWER_ATTEMPT_LIMIT" ?
+        const detail = error.code === 'WATCH_UI_UNCONFIRMED' ?
+          '공식 받기 버튼을 처리했지만 보상 상태와 보유량 변화가 함께 확인되지 않았습니다. 성공으로 기록하지 않았고 같은 보상은 자동으로 다시 클릭하지 않습니다.' : error.code === "POWER_ATTEMPT_LIMIT" ?
           "중복 방지 기록 2,000건 한도에 도달하여 자동수령을 중단했습니다. 기존 수령·미확인 기록은 보존되며 새 수령 요청은 보내지 않습니다. 기록을 지워 재시도하지 마세요." :
           ["MAIN_CHANNEL_REQUIRED", "POWER_HOST_REQUIRED", "POWER_LOCK_TIMEOUT"].includes(error.code) ? `${error.message}${failures > 5 ? " 연결 조회 재시도 한도에 도달하여 중단했습니다." : ""}` : error.code === "ACCOUNT_CHANGED" ?
           "계정 변경 또는 로그아웃이 감지되어 중단했습니다. 미확인 요청은 자동 재시도하지 않습니다." : auth ?
           "로그인 세션을 확인하지 못해 중단했습니다. 로그인 후 직접 다시 켜주세요." :
-          error.status === 403 ? "보상 요청이 거부되어 중단했습니다. 자격이나 접근 상태를 직접 확인해주세요." :
+          error.status === 403 ? "계정 또는 보상 조회가 거부되어 중단했습니다. 1시간 보상은 API로 직접 수령하지 않습니다. 접근 상태를 확인한 뒤 직접 ON을 눌러주세요. 기존 미확인 보상은 재전송하지 않습니다." :
           error.status === 409 ? "이미 처리된 보상 응답으로 중단했습니다. 이 앱의 획득 성공으로 기록하지 않았습니다." :
           error.status === 429 ? "요청 제한으로 중단했습니다. 미확인 수령 요청은 자동 재시도하지 않습니다." :
           error.name === "TimeoutError" && error.method !== "GET" ? "요청 시간이 초과되어 중단했습니다. 수령 여부가 불명확한 요청은 자동 재시도하지 않습니다." :

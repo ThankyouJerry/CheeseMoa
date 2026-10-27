@@ -13,7 +13,9 @@ export function createPowerCoordinator({chromeApi=chrome,locks=navigator.locks,n
   const stored=(await sessionStore.get(KEY))[KEY];
   const preference=(await chromeApi.storage.local.get(POWER_PREFERENCE_KEY))[POWER_PREFERENCE_KEY];
   // Existing runtime OFF/pending/error is never replaced by a new default.
-  return stored===undefined&&(preference===undefined||preference?.enabled===true);
+  // Test candidate: a new extension/profile needs an explicit ON. Existing ON/OFF
+  // ownership and saved preferences still restore; never erase or migrate guards.
+  return stored===undefined&&preference?.enabled===true;
  };
  const owns=(s,c)=>s.tabId===c.tabId&&s.documentId===c.documentId&&s.channelId===c.channelId;
  const same=(s,c,epoch)=>s.enabled&&owns(s,c)&&s.epoch===epoch;
@@ -106,7 +108,8 @@ export function createPowerCoordinator({chromeApi=chrome,locks=navigator.locks,n
    if(pending.has(epoch))throw Object.assign(new Error('보상 확인이 이미 진행 중입니다.'),{code:'OWNER_BUSY'});
    const controller=new AbortController();pending.set(epoch,controller);
    try{
-    const identity=await account(),collector=createPowerCollector({storage:chromeApi.storage.local,locks,fetcher:transport.fetcher,now});
+    const identity=await account(),collector=createPowerCollector({storage:chromeApi.storage.local,locks,fetcher:transport.fetcher,
+     watchCollector:transport.collectWatchReward,now});
     const result=await collector.collect(c.channelId,{enabled:true,accountId:identity,signal:controller.signal,
      isCurrent:async()=>{if(!same(await read(),c,epoch))return false;await account();return same(await read(),c,epoch)},
      isSameAccount:async()=>await checkPowerAccount((url,options)=>transport.fetcher(url,{...options,postMutationIdentity:true}))===identity});
@@ -115,7 +118,7 @@ export function createPowerCoordinator({chromeApi=chrome,locks=navigator.locks,n
    }finally{pending.delete(epoch)}
   }catch(error){
    // A failed local readiness probe made no HTTP request; preserve server deadlines.
-   if(error.method==='GET'&&error.retryable&&error.code!=='POWER_PLAYBACK_WAIT'){
+   if(error.method==='GET'&&error.retryable&&!['POWER_PLAYBACK_WAIT','POWER_WATCH_UI_WAIT'].includes(error.code)){
     const scope=error.requestScope==='account'?'account':channelScope(c);
     const next=await change(s=>{const previous=entry(s,scope),failures=previous.failures+1;const retryAt=Math.max(previous.retryAt,now()+Math.max(Math.min(60000*2**(failures-1),900000),error.retryAfterMs||0));return {...s,backoffs:{...s.backoffs,[scope]:{retryAt,failures}}}});
     const deadline=entry(next,scope);Object.assign(error,deadline,{retryAfterMs:Math.max(0,deadline.retryAt-now())});

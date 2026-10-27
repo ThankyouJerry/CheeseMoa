@@ -88,7 +88,7 @@ article{display:grid;grid-template-rows:28px 64px minmax(0,1fr) 24px;min-width:0
   const layoutLabel=document.createElement('label');layoutLabel.textContent='동시에 볼 방송 수 ';
   const layout = document.createElement('select'); layout.setAttribute('aria-label','동시에 볼 방송 수');layout.disabled=true;
   layoutLabel.append(layout);nav.append(layoutLabel);
-  const notice = document.createElement('p'); notice.className='note notice';notice.textContent=`최대 ${MAX_ACTIVE}개를 이 화면에서 시청합니다. 방송 시작 전에는 플레이어를 불러오지 않습니다. 자동수령 패널에서 수집할 방송과 ON/OFF 상태를 확인하세요. 새 설정은 기본 ON이며 저장한 OFF와 현재 실행의 OFF는 유지합니다. 관리 창을 열어둘 필요가 없습니다. 실제 ON·최근 조회·확정 수령은 자동수령 패널에서 확인하세요.`;const help=document.createElement('details');help.className='help';const summary=document.createElement('summary');summary.textContent='시청·자동수령 안내';help.append(summary,notice);main.append(help);
+  const notice = document.createElement('p'); notice.className='note notice';notice.textContent=`최대 ${MAX_ACTIVE}개를 이 화면에서 시청합니다. 방송 시작 전에는 플레이어를 불러오지 않습니다. 자동수령 패널에서 수집할 방송과 ON/OFF 상태를 확인하세요. 이 테스트 빌드의 새 설정은 OFF입니다. 직접 ON으로 시작하며 저장한 ON/OFF와 현재 실행의 OFF는 유지합니다. 관리 창을 열어둘 필요가 없습니다. 실제 ON·최근 조회·확정 수령은 자동수령 패널에서 확인하세요.`;const help=document.createElement('details');help.className='help';const summary=document.createElement('summary');summary.textContent='시청·자동수령 안내';help.append(summary,notice);main.append(help);
   const status=document.createElement('p');status.className='note';status.setAttribute('role','status');main.append(status);
   const grid=document.createElement('section');grid.className='grid';grid.setAttribute('aria-label','멀티뷰 방송 목록');main.append(grid);
 
@@ -96,7 +96,7 @@ article{display:grid;grid-template-rows:28px 64px minmax(0,1fr) 24px;min-width:0
   // Requests arrive only from this extension's management document, never from
   // web postMessage. No arbitrary URL, credentials, header or script is accepted.
   const powerBuild='power-20261011.7';
-  const powerTypes=new Set(['WATCH_1_HOUR','WATCH_5_MIN','FOLLOW','DONATE','DONATE_MONTHLY','SUBSCRIPTION_GIFT','SUBSCRIPTION_GIFT_MONTHLY']);
+  const powerTypes=new Set(['WATCH_5_MIN','FOLLOW','DONATE','DONATE_MONTHLY','SUBSCRIPTION_GIFT','SUBSCRIPTION_GIFT_MONTHLY']);
   const liveUrl=id=>`https://chzzk.naver.com/live/${id}`;
   const mediaReady=items=>items.some(v=>!v.paused && v.readyState>=2);
   const playing=id=>!disposed && isHostRoute() && active.has(liveUrl(id)) && mediaReady(media(active.get(liveUrl(id)).frame));

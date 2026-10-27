@@ -28,7 +28,7 @@ for(const point of ['after-pending','after-put','before-receipt'])test(`actual w
    }
    if(m.op==='fetch'){
     if(m.method==='PUT'){puts++;if(inject&&!crashed&&point==='after-put'){kill();return}reply({status:204,body:null});return}
-    reply({status:200,body:JSON.stringify({code:200,content:m.url.includes('getUserStatus')?{loggedIn:true,userIdHash:'crash_test_account'}:{active:true,amount:100,claims:[{claimId:'persistent-claim',claimType:'WATCH_1_HOUR',state:'COMPLIED',saveType:'ACTIVE',amount:10}]}})});
+    reply({status:200,body:JSON.stringify({code:200,content:m.url.includes('getUserStatus')?{loggedIn:true,userIdHash:'crash_test_account'}:{active:true,amount:100,claims:[{claimId:'persistent-claim',claimType:'WATCH_5_MIN',state:'COMPLIED',saveType:'ACTIVE',amount:10}]}})});
    }
   });
  })}
