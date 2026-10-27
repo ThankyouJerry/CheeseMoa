@@ -51,15 +51,16 @@ test('visible playback status must not report playing while readiness gate rejec
  }finally{f.dom.window.close()}
 });
 
-test('idle multiview explains fresh default ON while preserving saved and current OFF',async()=>{
+test('idle multiview explains explicit ON for the test build while preserving saved preferences and current OFF',async()=>{
  const f=await fixture({start:false});try{
   assert.equal(f.probe(),false);
   assert.doesNotMatch(f.root.querySelector('.state').textContent,/자동 수령 OFF/);
   const notice=f.root.querySelector('.notice').textContent;
   assert.match(notice,/자동수령 패널/);
   assert.match(notice,/수집할 방송과 ON\/OFF 상태/);
-  assert.match(notice,/새 설정은 기본 ON/);
-  assert.match(notice,/저장한 OFF와 현재 실행의 OFF는 유지/);
+  assert.match(notice,/이 테스트 빌드의 새 설정은 OFF/);
+  assert.match(notice,/직접 ON으로 시작/);
+  assert.match(notice,/저장한 ON\/OFF와 현재 실행의 OFF는 유지/);
   assert.match(notice,/관리 창을 열어둘 필요가 없습니다/);
   assert.match(notice,/실제 ON·최근 조회·확정 수령/);
  }finally{f.dom.window.close()}

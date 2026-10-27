@@ -5,7 +5,8 @@ import {createPowerTransport} from '../src/shared/power-transport.js';
 import {POWER_BUILD} from '../src/shared/power-build.js';
 const channel='a'.repeat(32),base=`https://api.chzzk.naver.com/service/v1/channels/${channel}/log-power`;
 const claim={kind:'claim',channelId:channel,claimId:'one'};
-const eligible=()=>new Response(JSON.stringify({code:200,content:{active:true,claims:[{claimId:'one',claimType:'WATCH_1_HOUR',state:'COMPLIED',saveType:'ACTIVE'}]}}));
+// PUT readiness regressions need a supported non-hour reward; hourly rewards require official UI.
+const eligible=()=>new Response(JSON.stringify({code:200,content:{active:true,claims:[{claimId:'one',claimType:'WATCH_5_MIN',state:'COMPLIED',saveType:'ACTIVE'}]}}));
 const waiting=r=>r.error==='POWER_PLAYBACK_WAIT'&&r.status===0&&r.mutationDispatched===false&&r.phase==='eligibility';
 test('page agent distinguishes valid-channel readiness from invalid input before any network',async()=>{
  let calls=0;const agent=createPagePowerAgent({isPlaying:()=>false,fetcher:async()=>{calls++;throw Error('unexpected')}});
@@ -18,7 +19,7 @@ test('network and schema failures during playback loss remain failures, not read
   const result=await agent(claim);assert.equal(result.error,'POWER_TRANSPORT_FAILED');assert.equal(result.mutationDispatched,false);
  }
 });
-test('playback loss after PUT dispatch never becomes a local wait',async()=>{
+test('playback loss after non-hour PUT dispatch never becomes a local wait',async()=>{
  let playing=true,puts=0;const agent=createPagePowerAgent({isPlaying:()=>playing,fetcher:async(u,o)=>{if(o.method==='GET')return eligible();puts++;playing=false;throw Error('NO_ACTIVE_PLAYER')}});
  const result=await agent(claim);assert.equal(result.error,'POWER_TRANSPORT_FAILED');assert.equal(result.mutationDispatched,true);assert.equal(result.phase,'mutation');assert.equal(puts,1);
 });

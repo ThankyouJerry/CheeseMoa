@@ -11,6 +11,17 @@ const openButton = document.querySelector("#open-button");
 const loginButton = document.querySelector("#login-button");
 const savedList = document.querySelector("#saved-list");
 const savedCount = document.querySelector("#saved-count");
+const vodToolsButton = document.querySelector("#vod-tools-button");
+vodToolsButton.addEventListener("click", async () => {
+  vodToolsButton.disabled = true;
+  try {
+    await chrome.tabs.create({ url: chrome.runtime.getURL("src/vod/vod-tools.html") });
+    window.close();
+  } catch {
+    document.querySelector("#vod-tools-status").textContent = "VOD 도구를 열지 못했습니다. 다시 시도해 주세요.";
+    vodToolsButton.disabled = false;
+  }
+});
 savedList.tabIndex = 0;
 savedList.setAttribute("role", "region");
 savedList.setAttribute("aria-label", "저장된 방송 목록, 스크롤 가능");

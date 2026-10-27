@@ -194,7 +194,10 @@ export function createPowerCollector({ storage, locks, fetcher = fetch, watchCol
       if (!await isCurrent()) return resultWithReceipt({status: "disabled", collected, channelId});
       const balance = snapshot(refreshed);
       const last = state.receipts.at(-1);
-      if (last?.accountId === accountId && last.channelId === channelId) {
+      // The official-UI balance pair is confirmation evidence. A later balance
+      // can change independently; keep it in state.balances without rewriting
+      // the values observed when that receipt was confirmed.
+      if (last?.accountId === accountId && last.channelId === channelId && last.collectionMethod !== 'official-ui') {
         last.balanceAfter = balance.amount;
         last.balanceCheckedAt = balance.checkedAt;
       }

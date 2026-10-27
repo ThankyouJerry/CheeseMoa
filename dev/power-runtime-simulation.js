@@ -27,8 +27,9 @@ export function createRuntimeSimulation({mode='ok',onState=()=>{}}={}){
   networkCount++;
   if(condition==='preflight-playback'&&networkCount%2===0)gate=false;
   if(condition==='preflight403'&&networkCount===2)return new Response(null,{status:403});
-  // Adversarial server repeats the same eligible reward even after success/lost PUT.
-  return new Response(JSON.stringify({code:200,content:{active:true,amount:100,claims:[{claimId:'persistent-one',claimType:'WATCH_1_HOUR',state:'COMPLIED',saveType:'ACTIVE',amount:20}]}}));
+  // Adversarial server repeats the same supported non-hour reward after success/lost PUT.
+  // WATCH_1_HOUR uses the official UI and is covered by the watch-ui fixtures instead.
+  return new Response(JSON.stringify({code:200,content:{active:true,amount:100,claims:[{claimId:'persistent-one',claimType:'WATCH_5_MIN',state:'COMPLIED',saveType:'ACTIVE',amount:20}]}}));
  };
  const chromeApi={runtime:{id:'sim-extension'},storage:{local,session},tabs:{sendMessage:async(tabId,message,options)=>{const agent=agents.get(`${tabId}:${options.documentId}`);if(!agent)throw new Error('document gone');return agent(message)}}};
  const coordinator=createPowerCoordinator({chromeApi,locks,now:clock.now,uuid:()=>`epoch-${++epoch}`});

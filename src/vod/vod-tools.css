@@ -1,0 +1,73 @@
+:root {
+  color-scheme: light;
+  --navy: #173b57;
+  --cheese: #ffc83d;
+  --coral: #ff6b4a;
+  --cream: #fff8e5;
+  --paper: #ffffff;
+  --powder: #ddecf2;
+  --slate: #617282;
+  font-family: "Apple SD Gothic Neo", Pretendard, "Noto Sans KR", sans-serif;
+  color: var(--navy);
+  background: var(--cream);
+  font-size: 14px;
+  line-height: 1.55;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 1180px; margin: 0 auto; padding: 32px 24px 56px; }
+.brand { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+.brand p { margin: 0; font-size: 12px; font-weight: 750; color: var(--slate); }
+h1 { margin: 0; font-size: 25px; line-height: 1.35; letter-spacing: -.04em; }
+h2 { margin: 0; font-size: 18px; letter-spacing: -.03em; }
+h3 { margin: 22px 0 10px; font-size: 14px; }
+.source-panel { padding: 22px; border: 1px solid #173b5726; border-radius: 20px; background: var(--paper); }
+.source-panel h2 { margin-bottom: 12px; }
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; margin-top: 30px; }
+.workspace > section { min-width: 0; }
+.section-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+legend { font-size: 14px; font-weight: 750; padding: 0; margin: 16px 0 10px; }
+label { display: block; font-size: 12px; font-weight: 750; }
+input, textarea, select { display: block; width: 100%; min-width: 0; margin-top: 6px; border: 1px solid #173b5738; border-radius: 10px; background: var(--paper); color: var(--navy); padding: 10px 12px; font: 500 14px/1.5 "Apple SD Gothic Neo", Pretendard, "Noto Sans KR", sans-serif; }
+textarea { resize: vertical; min-height: 110px; }
+button, .download { border: 1px solid #173b5738; border-radius: 10px; background: var(--paper); color: var(--navy); padding: 10px 13px; font: 750 12px/1.5 "Apple SD Gothic Neo", Pretendard, "Noto Sans KR", sans-serif; cursor: pointer; }
+button:hover, .download:hover { background: var(--powder); }
+.primary { border-color: var(--coral); background: var(--coral); color: #262629; }
+.primary:hover { background: #ff886d; }
+.quiet { padding: 6px 9px; background: transparent; }
+.input-row { display: flex; align-items: stretch; gap: 8px; margin-top: 6px; }
+.input-row input { margin-top: 0; flex: 1; }
+.input-row button { flex: 0 0 auto; }
+.time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.hint { margin: 8px 0 12px; color: var(--slate); font-size: 12px; overflow-wrap: anywhere; }
+.status { margin: 12px 0; min-height: 22px; font-size: 13px; overflow-wrap: anywhere; }
+.status.error, .error { color: #a12f1c; }
+.record-list, #export-links { list-style: none; margin: 0; padding: 0; }
+.record-list > li { padding: 16px 0; border-top: 1px solid #173b5726; overflow-wrap: anywhere; }
+.record-list .empty { color: var(--slate); font-size: 13px; }
+.record-title { font-size: 13px; font-weight: 800; margin: 0; }
+.record-detail { margin: 5px 0; font-size: 12px; color: var(--slate); white-space: pre-wrap; }
+.note-content { margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.actions button { padding: 7px 10px; }
+.actions .primary { padding: 10px 13px; }
+.player-panel { border-bottom: 1px solid #173b5726; padding-bottom: 4px; }
+.player-panel .section-heading { margin-bottom: 4px; }
+.export-panel { border-left: 4px solid var(--cheese); padding: 1px 14px 12px; margin-top: 20px; background: var(--paper); }
+.download { display: inline-block; margin-top: 8px; text-decoration: underline; overflow-wrap: anywhere; }
+#chat-pause { margin-top: 10px; }
+:focus-visible { outline: 3px solid var(--navy); outline-offset: 3px; }
+button:disabled, input:disabled, select:disabled, textarea:disabled { opacity: .55; cursor: not-allowed; }
+[hidden] { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@media (max-width: 760px) {
+  main { padding: 20px 16px 36px; }
+  .workspace { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .source-panel { padding: 16px; }
+}
+@media (max-width: 420px) {
+  .input-row { flex-wrap: wrap; }
+  .input-row input { flex-basis: 100%; }
+  .time-grid { grid-template-columns: minmax(0, 1fr); }
+}

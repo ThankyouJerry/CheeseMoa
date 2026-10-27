@@ -101,6 +101,17 @@ test('concurrent/reopened collectors click once and keep durable hourly UI evide
  const state=m.snapshot()[POWER_STORAGE_KEY];assert.equal(h.clicks,1);assert.equal(state.receipts.length,1);
  assert.equal(state.receipts[0].confirmation,'claim-and-balance');assert.equal(state.attempts[0].status,'confirmed');
 });
+test('a later balance refresh cannot overwrite the balance that confirmed an hourly UI receipt',async()=>{
+ const h=harness(),m=memory();let reads=0;
+ const fetcher=async(...args)=>++reads===4?response(snapshot(150,[])):h.options.fetcher(...args);
+ const c=createPowerCollector({...m,fetcher,watchCollector:()=>collectWatchUiReward({...h.options,fetcher})});
+ const result=await c.collect(channelId,{enabled:true,accountId});
+ const state=m.snapshot()[POWER_STORAGE_KEY];
+ assert.equal(reads,4);assert.equal(h.clicks,1);assert.equal(result.collected,1);
+ assert.equal(result.latestReceipt.balanceAfter,200);
+ assert.equal(state.receipts[0].balanceBefore,100);assert.equal(state.receipts[0].balanceAfter,200);
+ assert.equal(state.balances[0].amount,150,'the newer balance remains separately available');
+});
 test('uncertain hourly click and legacy pending guards survive reopening without replay',async()=>{
  for(const legacy of [false,true]){
   const h=harness({after:snapshot()}),m=memory();

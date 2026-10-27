@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VOD 채팅·메모 · 치즈모아</title>
+    <link rel="stylesheet" href="vod-tools.css" />
+  </head>
+  <body data-vod-tools-auto>
+    <main>
+      <header class="brand">
+        <img src="../../assets/brand/cheesemoa-mark.svg" alt="" width="48" height="48" />
+        <div><p>치즈모아</p><h1>VOD 채팅·메모</h1></div>
+      </header>
+
+      <section class="source-panel" aria-labelledby="source-title">
+        <h2 id="source-title">다시보기 선택</h2>
+        <form id="source-form">
+          <label for="source-url">CHZZK 다시보기 URL</label>
+          <div class="input-row"><input id="source-url" type="url" required maxlength="2048" placeholder="https://chzzk.naver.com/video/123" /><button type="submit" class="primary">선택</button></div>
+        </form>
+        <p id="source-status" class="status" role="status">다시보기 주소를 선택해 주세요. 수집은 시작 버튼을 눌러야 실행됩니다.</p>
+      </section>
+
+      <div class="workspace">
+        <section aria-labelledby="chat-title">
+          <div class="section-heading"><h2 id="chat-title">채팅 수집</h2><button id="jobs-refresh" type="button" class="quiet">목록 새로고침</button></div>
+          <form id="chat-form">
+            <fieldset id="chat-fields" disabled>
+              <legend class="sr-only">수집 범위</legend>
+              <div class="time-grid">
+                <label for="range-start">시작 시각<input id="range-start" type="text" value="00:00:00.000" aria-describedby="range-help" /></label>
+                <label for="range-end">종료 시각 (선택)<input id="range-end" type="text" placeholder="끝까지" aria-describedby="range-help" /></label>
+              </div>
+              <p id="range-help" class="hint">다시보기 시작 기준 · HH:MM:SS.mmm 또는 초 단위</p>
+              <button id="chat-start" class="primary" type="submit">채팅 수집 시작</button>
+            </fieldset>
+          </form>
+          <button id="chat-pause" type="button" hidden>수집 일시정지</button>
+          <p id="chat-status" class="status" role="status">수집 대기 중</p>
+          <p class="hint">이 탭을 열어 둔 동안 수집합니다. 중단된 작업은 저장된 지점에서 직접 이어갈 수 있습니다. API 응답만으로 전체 채팅의 완전성을 보장할 수 없습니다.</p>
+          <h3>저장된 수집 작업</h3>
+          <ul id="jobs-list" class="record-list" aria-label="저장된 수집 작업"></ul>
+          <section id="export-panel" class="export-panel" aria-labelledby="export-title" hidden>
+            <h3 id="export-title">CSV 다운로드</h3>
+            <p class="hint">각 파일 링크를 눌러 저장하세요. 다운로드 준비는 디스크 저장 완료를 뜻하지 않습니다.</p>
+            <ul id="export-links"></ul>
+          </section>
+        </section>
+
+        <section aria-labelledby="notes-title">
+          <div class="section-heading"><h2 id="notes-title">타임스탬프 메모</h2><button id="notes-refresh" type="button" class="quiet" disabled>목록 새로고침</button></div>
+          <div class="player-panel">
+            <div class="section-heading"><label for="player-select">시간을 가져오거나 이동할 플레이어</label><button id="player-discover" type="button" class="quiet" disabled>플레이어 찾기</button></div>
+            <select id="player-select" disabled><option value="">플레이어를 직접 선택해 주세요</option></select>
+            <p id="player-status" class="hint" role="status">선택한 다시보기의 열린 CHZZK 탭에서 찾습니다. 시각을 직접 입력해도 됩니다.</p>
+          </div>
+          <form id="note-form">
+            <fieldset id="note-fields" disabled>
+              <legend id="note-editor-title">새 메모</legend>
+              <label for="note-time">메모 시각</label>
+              <div class="input-row"><input id="note-time" type="text" value="00:00:00.000" required aria-describedby="note-time-help" /><button id="note-snapshot" type="button" disabled>현재 시각 가져오기</button></div>
+              <p id="note-time-help" class="hint">다시보기 시작 기준 · HH:MM:SS.mmm 또는 초 단위</p>
+              <label for="note-text">메모 내용</label>
+              <textarea id="note-text" rows="4" maxlength="2000" required placeholder="기억하고 싶은 순간을 적어 보세요."></textarea>
+              <div class="actions"><button id="note-save" type="submit" class="primary">메모 추가</button><button id="note-cancel" type="button" hidden>수정 취소</button></div>
+            </fieldset>
+          </form>
+          <p id="note-status" class="status" role="status">메모는 이 브라우저의 확장 저장소에 보관됩니다.</p>
+          <ul id="notes-list" class="record-list" aria-label="선택한 다시보기의 메모"></ul>
+        </section>
+      </div>
+    </main>
+    <script type="module" src="vod-tools.js"></script>
+  </body>
+</html>

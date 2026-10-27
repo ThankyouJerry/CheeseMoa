@@ -370,8 +370,11 @@ async function collectWatchUiReward({channelId, claimId, getDocument, isPlaying,
   };
   if (!readyDocument()) throw failure('POWER_WATCH_UI_WAIT');
   const before = await readLogPower(channelId, fetcher);
-  const reward = before.claims.find(c => c.claimId === claimId && c.claimType === 'WATCH_1_HOUR');
+  const hourlyRewards = before.claims.filter(c => c.claimType === 'WATCH_1_HOUR');
+  const reward = hourlyRewards.find(c => c.claimId === claimId);
   if (!before.active || !reward) throw failure('WATCH_ALREADY_UNAVAILABLE', 409);
+  // The official button has no claim ID; a single eligible hourly reward is required to bind it.
+  if (hourlyRewards.length !== 1) throw failure('POWER_WATCH_UI_WAIT');
   const doc = readyDocument();
   const button = doc && findWatchRewardButton(doc);
   if (!button) throw failure('POWER_WATCH_UI_WAIT');

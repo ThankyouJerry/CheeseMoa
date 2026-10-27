@@ -2,7 +2,8 @@ import {createPowerCollector,POWER_STORAGE_KEY} from '../src/shared/power-collec
 import {createPowerSession} from '../src/shared/power-session.js';
 const channel='a'.repeat(32),account='b'.repeat(64),other='c'.repeat(64);
 const options={enabled:true,accountId:account};
-const reward={claimId:'eligible-one',claimType:'WATCH_1_HOUR',state:'COMPLIED',saveType:'ACTIVE',amount:20};
+// Exercise supported non-hour PUT recovery; WATCH_1_HOUR must use the official UI.
+const reward={claimId:'eligible-one',claimType:'WATCH_5_MIN',state:'COMPLIED',saveType:'ACTIVE',amount:20};
 const check=(ok,message)=>{if(!ok)throw new Error(message)};
 // Response.text() uses browser stream tasks, not just Promise microtasks.
 const flush=async()=>{for(let i=0;i<12;i++){for(let n=0;n<12;n++)await Promise.resolve();await new Promise(resolve=>{const task=new MessageChannel();task.port1.onmessage=()=>{task.port1.close();task.port2.close();resolve()};task.port2.postMessage(null)})}};
@@ -39,7 +40,7 @@ export function createSimulation({mode='ok',blockLock=false,collectorFactory=cre
  return {session,collector,newCollector,advance,states,calls,events,timers,flush,state:()=>data[POWER_STORAGE_KEY],identity:v=>identity=v,channel:v=>selected=v,mode:v=>mode=v,release(){locked=false;waiters.shift()?.()}};
 }
 export const scenarios=[
- ['success','적격 보상 1회 수령·중복 방지'],['get-recovery','GET 503 후 예약 복구'],['forbidden','403 중단·재시도 없음'],['uncertain','PUT 응답 유실·중복 방지'],['off','OFF로 잠금 대기 취소'],['account','계정 변경 중단'],['channel','주 채널 제거 중단'],['lifecycle','페이지 종료·복원 후 OFF 유지'],['deadline','서버 무응답 시간 제한'],['lock-deadline','잠금 무응답 시간 제한'],['two-clients','두 수집기 동시 실행·PUT 1회']
+ ['success','5분 보상 PUT 1회 수령·중복 방지'],['get-recovery','GET 503 후 예약 복구'],['forbidden','403 중단·재시도 없음'],['uncertain','PUT 응답 유실·중복 방지'],['off','OFF로 잠금 대기 취소'],['account','계정 변경 중단'],['channel','주 채널 제거 중단'],['lifecycle','페이지 종료·복원 후 OFF 유지'],['deadline','서버 무응답 시간 제한'],['lock-deadline','잠금 무응답 시간 제한'],['two-clients','두 수집기 동시 실행·PUT 1회']
 ];
 export async function runScenario(key,{collectorFactory=createPowerCollector}={}){
  const h=createSimulation({collectorFactory,mode:({'get-recovery':'get-once',forbidden:'403',uncertain:'uncertain',deadline:'deadline'})[key]||'ok',blockLock:['off','lock-deadline'].includes(key)});

@@ -12,6 +12,10 @@ assert.deepEqual(manifest.host_permissions, ["https://chzzk.naver.com/*", "https
 assert.deepEqual(manifest.permissions, ["storage"]);
 
 const requiredFiles = [
+  "src/vod/vod-tools.html", "src/vod/vod-tools.js", "src/vod/vod-tools.css",
+  "src/vod/vod-frame.js", "src/vod/source.js", "src/vod/time.js",
+  "src/vod/chat-api.js", "src/vod/chat-job.js", "src/vod/chat-store.js", "src/vod/chat-csv.js",
+  "src/vod/note-model.js", "src/vod/note-store.js", "src/vod/note-player.js",
   manifest.action.default_popup,
   manifest.background.service_worker,
   "src/viewer/power-page.js",

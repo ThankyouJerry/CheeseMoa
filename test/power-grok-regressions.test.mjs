@@ -6,7 +6,8 @@ import { safePowerError } from '../src/background/power-coordinator.js';
 import { readFile } from 'node:fs/promises';
 import { JSDOM } from 'jsdom';
 const channel = 'a'.repeat(32), account = 'b'.repeat(64);
-const reward = { claimId: 'mock-reward', claimType: 'WATCH_1_HOUR', state: 'COMPLIED', saveType: 'ACTIVE', amount: 10 };
+// Keep PUT receipt/recovery coverage on a supported non-hour reward; hourly rewards use official UI.
+const reward = { claimId: 'mock-reward', claimType: 'WATCH_5_MIN', state: 'COMPLIED', saveType: 'ACTIVE', amount: 10 };
 const balance = claims => new Response(JSON.stringify({ code: 200, content: { amount: 100, active: true, claims } }), { status: 200 });
 const flush = () => new Promise(resolve => setImmediate(resolve));
 function harness({ afterPut = 'normal', conflict = false, initialAttempts = [], accountSwitch = false, rewards = [reward] } = {}) {
