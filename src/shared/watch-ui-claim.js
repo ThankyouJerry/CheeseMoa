@@ -25,6 +25,9 @@ export function findWatchRewardButton(doc) {
 
 export async function collectWatchUiReward({channelId, claimId, getDocument, isPlaying,
   isEnabled, fetcher = fetch, now = Date.now, wait = ms => new Promise(resolve => setTimeout(resolve, ms))}) {
+  // A same-URL iframe reload is still a new owner. Pin the actual document
+  // across asynchronous eligibility and receipt checks, not just its URL.
+  const initialDocument = getDocument?.(channelId);
   let clicked = false;
   const failure = (code, status = 0) => Object.assign(new Error(code), {
     code, errorCode: code, status, method: clicked ? 'UI' : 'GET',
@@ -33,7 +36,7 @@ export async function collectWatchUiReward({channelId, claimId, getDocument, isP
   });
   const readyDocument = () => {
     const doc = getDocument?.(channelId);
-    return isEnabled?.(channelId) && isPlaying(channelId) &&
+    return doc === initialDocument && isEnabled?.(channelId) && isPlaying(channelId) &&
       doc?.URL === `https://chzzk.naver.com/live/${channelId}` ? doc : null;
   };
   if (!readyDocument()) throw failure('POWER_WATCH_UI_WAIT');
@@ -55,6 +58,7 @@ export async function collectWatchUiReward({channelId, claimId, getDocument, isP
       // Never attribute a receipt after the owning document/channel is lost.
       if (!readyDocument()) throw failure('WATCH_UI_UNCONFIRMED');
       const after = await readLogPower(channelId, fetcher);
+      if (!readyDocument()) throw failure('WATCH_UI_UNCONFIRMED');
       const noLongerAvailable = !after.claims.some(c => c.claimId === claimId);
       const expected = Number.isSafeInteger(reward.amount) && reward.amount > 0 ? reward.amount : 1;
       if (after.active && noLongerAvailable && after.balance - before.balance >= expected) {
