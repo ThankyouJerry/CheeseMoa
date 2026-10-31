@@ -78,6 +78,30 @@ test('OFF during eligibility GET prevents click',async()=>{
  const h=harness(),fetcher=h.options.fetcher;h.options.fetcher=async(...args)=>{const r=await fetcher(...args);h.disable();return r};
  await assert.rejects(collectWatchUiReward(h.options),e=>e.mutationDispatched===false);assert.equal(h.clicks,0);
 });
+test('same-URL document replacement during eligibility prevents a click in the new player',async()=>{
+ const h=harness(),fetcher=h.options.fetcher;let current=h.doc;
+ h.options.getDocument=()=>current;
+ h.options.fetcher=async(...args)=>{const response=await fetcher(...args);current={...h.doc};return response};
+ await assert.rejects(collectWatchUiReward(h.options),e=>e.code==='POWER_WATCH_UI_WAIT'&&e.mutationDispatched===false);
+ assert.equal(h.clicks,0);assert.equal(h.requests,1);
+});
+test('same-URL document replacement after click cannot confirm a receipt for the old player',async()=>{
+ const h=harness();let current=h.doc;
+ h.options.getDocument=()=>current;h.options.wait=async()=>{current={...h.doc}};
+ await assert.rejects(collectWatchUiReward(h.options),e=>e.code==='WATCH_UI_UNCONFIRMED'&&e.mutationDispatched===true);
+ assert.equal(h.clicks,1);assert.equal(h.requests,1);
+});
+for(const lostOwner of ['document','disabled','paused'])test(`owner lost during receipt GET stays unconfirmed: ${lostOwner}`,async()=>{
+ const h=harness(),fetcher=h.options.fetcher;let current=h.doc;
+ h.options.getDocument=()=>current;
+ h.options.fetcher=async(...args)=>{
+  const response=await fetcher(...args);
+  if(h.clicks){if(lostOwner==='document')current={...h.doc};else if(lostOwner==='disabled')h.disable();else h.pause()}
+  return response;
+ };
+ await assert.rejects(collectWatchUiReward(h.options),e=>e.code==='WATCH_UI_UNCONFIRMED'&&e.mutationDispatched===true);
+ assert.equal(h.clicks,1);assert.equal(h.requests,2);
+});
 test('wrong selected document and paused playback make no request',async()=>{
  for(const action of [h=>h.doc.URL=`https://chzzk.naver.com/live/${'c'.repeat(32)}`,h=>h.pause()]){
   const h=harness();action(h);await assert.rejects(collectWatchUiReward(h.options));assert.equal(h.requests,0);assert.equal(h.clicks,0);
